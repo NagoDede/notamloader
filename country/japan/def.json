@@ -1,0 +1,13 @@
+{
+ "country": "Japan",
+ "loginPage": "https://aisjapan.mlit.go.jp/LoginAction.do",
+ "loginData": {
+    "formName": "ais-web",
+    "password": "Env:JAPAN_AIP_PWD",
+    "userID": "Env:JAPAN_AIP_USERID"
+   },
+ "notamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
+ "notamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
+ "notamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",
+ "codeListPath":"https://nagodede.github.io/aip/japan/documents/codes.json"
+}
