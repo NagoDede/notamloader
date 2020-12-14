@@ -2,9 +2,9 @@ package japan
 
 import (
 	"fmt"
+
 	"github.com/NagoDede/notamloader/notam"
 
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	_ "io/ioutil"
 	"log"
@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type JpNotamDispForm struct {
@@ -25,10 +27,16 @@ type JpNotamDispForm struct {
 	dispFromTime string
 }
 
+
+//ToUrlValues converts the structure to an url.Values structure.
+func (ndf JpNotamDispForm) ToUrlValues() (values url.Values) {
+	return structToUrlValues(&ndf)
+}
+
 func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string) *notam.Notam {
 
-	urlValues := structToMap(ndf)
-	resp, _ := httpClient.PostForm(url, urlValues)
+	
+	resp, _ := httpClient.PostForm(url, ndf.ToUrlValues())
 
 	notam := notamText(resp.Body)
 	resp.Body.Close()
@@ -65,24 +73,24 @@ func notamText(body io.ReadCloser) *notam.Notam {
 		log.Fatal(err)
 	}
 
-	doc.Find(`td[class="txt-notam"]`).Each( 
-		func (index int, a *goquery.Selection){
-		fmt.Println(a.Text())
-		fillNumber(index, a, notam)
-		fillNotamCode(index, a, notam)
-		fillIcaoLocation(index, a, notam)
-		fillDates(index,a,notam)
-		fillText(index,a,notam)
-		fillLowerLimit(index,a,notam)
-		fillUpperLimit(index,a,notam)
+	doc.Find(`td[class="txt-notam"]`).Each(
+		func(index int, a *goquery.Selection) {
+			fmt.Println(a.Text())
+			fillNumber(index, a, notam)
+			fillNotamCode(index, a, notam)
+			fillIcaoLocation(index, a, notam)
+			fillDates(index, a, notam)
+			fillText(index, a, notam)
+			fillLowerLimit(index, a, notam)
+			fillUpperLimit(index, a, notam)
 		})
 
-	fmt.Printf("%#v\n",notam)
+	fmt.Printf("%#v\n", notam)
 	return notam
 }
 
 func fillNotamCode(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {
-	
+
 	//Get the NOTAM code identified by Q) and clean it.
 	re := regexp.MustCompile("(?s)Q\\).*?\n")
 	q := strings.TrimSpace(re.FindString(a.Text()))
@@ -108,24 +116,24 @@ func fillNumber(index int, a *goquery.Selection, notam *notam.Notam) *notam.Nota
 	q := strings.TrimSpace(re.FindString(a.Text()))
 	q = strings.TrimRight(q, " \r\n")
 	q = strings.TrimLeft(q, "(")
-	//Usually the NOTAM uses the non break space 
+	//Usually the NOTAM uses the non break space
 	//defines the non break space
 	ubkspace := "\xC2\xA0"
 	splitted := strings.Split(q, ubkspace)
-	if (len(splitted)==1) {
+	if len(splitted) == 1 {
 		//if not a success, try with a normal space
 		splitted = strings.Split(q, " ")
 	}
 
-	if (len(splitted)==1) {
+	if len(splitted) == 1 {
 		notam.Number = strings.TrimSpace(splitted[0])
 		notam.Status = "Error"
 	} else {
 		notam.Number = strings.TrimSpace(splitted[0])
 		notam.Identifier = strings.TrimSpace(splitted[1])
-	
+
 		if (notam.Identifier == "NOTAMR") || (notam.Identifier == "NOTAMR") {
-			notam.Replace =strings.TrimSpace( splitted[2])
+			notam.Replace = strings.TrimSpace(splitted[2])
 		}
 
 		notam.Status = "Operable"
@@ -141,7 +149,7 @@ func fillIcaoLocation(index int, a *goquery.Selection, notam *notam.Notam) *nota
 	q = strings.TrimRight(q, "B)")
 	q = strings.TrimRight(q, ubkspace)
 	q = strings.TrimLeft(q, "A)")
-	notam.Icaolocation = q 
+	notam.Icaolocation = q
 	return notam
 }
 
@@ -154,12 +162,12 @@ func fillDates(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam
 	q = strings.TrimRight(q, "D)")
 	q = strings.TrimRight(q, "\r\n")
 	q = strings.TrimRight(q, ubkspace)
-	
+
 	splitted := strings.Split(q, "C)")
 
-	if (len(splitted) == 1){
+	if len(splitted) == 1 {
 		notam.Status = "Error"
-	} else if (len(splitted) == 2){
+	} else if len(splitted) == 2 {
 		notam.FromDate = splitted[0][0:10]
 		notam.ToDate = splitted[1][0:10]
 	} else {
@@ -174,18 +182,18 @@ func fillText(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam 
 	re := regexp.MustCompile("(?s)E\\).*?(F\\)|G\\)|.*$)")
 	q := strings.TrimSpace(re.FindString(a.Text()))
 	q = strings.TrimLeft(q, "E)")
-	if (len(q) < 2) {
+	if len(q) < 2 {
 		fmt.Printf("Error on the following NOTAM: \n %s \n", a.Text())
 	}
 
 	if q[len(q)-2:] == "F)" || q[len(q)-2:] == "G)" {
-		q = q[0:len(q)-2]
+		q = q[0 : len(q)-2]
 	} else {
-		q = q[0:len(q)-1]
+		q = q[0 : len(q)-1]
 	}
 
-	q = strings.TrimRight(q, ubkspace +" \r\n")
-	
+	q = strings.TrimRight(q, ubkspace+" \r\n")
+
 	notam.Text = q
 	return notam
 }
@@ -196,15 +204,14 @@ func fillLowerLimit(index int, a *goquery.Selection, notam *notam.Notam) *notam.
 	re := regexp.MustCompile("(?s)F\\).*?G\\)")
 	q := strings.TrimSpace(re.FindString(a.Text()))
 	q = strings.TrimLeft(q, "F)")
-	if (len(q) > 3 ) {
-		q = q[0:len(q)-2]
-		q = strings.TrimRight(q, ubkspace +" \r\n")
+	if len(q) > 3 {
+		q = q[0 : len(q)-2]
+		q = strings.TrimRight(q, ubkspace+" \r\n")
 		notam.LowerLimit = q
 	} else {
-		notam.LowerLimit =""
+		notam.LowerLimit = ""
 	}
 
-	
 	return notam
 }
 
@@ -214,13 +221,12 @@ func fillUpperLimit(index int, a *goquery.Selection, notam *notam.Notam) *notam.
 	re := regexp.MustCompile("(?s)G\\).*?\\)")
 	q := strings.TrimSpace(re.FindString(a.Text()))
 	q = strings.TrimLeft(q, "G)")
-	if (len(q) > 3 ) {
-		q = q[0:len(q)-1]
-		q = strings.TrimRight(q, ubkspace +" \r\n")
+	if len(q) > 3 {
+		q = q[0 : len(q)-1]
+		q = strings.TrimRight(q, ubkspace+" \r\n")
 		notam.UpperLimit = q
 	} else {
 		notam.UpperLimit = ""
 	}
 	return notam
 }
-

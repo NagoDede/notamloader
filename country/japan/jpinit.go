@@ -4,7 +4,6 @@ import (
 	_ "context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/publicsuffix"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,9 +13,10 @@ import (
 	"reflect"
 	"strings"
 	_ "time"
-	 "github.com/NagoDede/notamloader/database"
-	 "github.com/NagoDede/notamloader/notam"
 
+	"github.com/NagoDede/notamloader/database"
+	"github.com/NagoDede/notamloader/notam"
+	"golang.org/x/net/publicsuffix"
 )
 
 var JapanAis JpData
@@ -53,7 +53,7 @@ func (jpd *JpData) Process() {
 	//define a default NOTAM
 	//Use 24h duration, retrieve the advisory and warning notams
 	notamSearch := JpNotamSearchForm{
-		location:   "RJNA",
+		location:   "RJJJ",
 		notamKbn:   "",
 		period:     "24",
 		dispScopeA: "true",
@@ -62,22 +62,19 @@ func (jpd *JpData) Process() {
 		firstFlg:   "true",
 	}
 
-	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//defer cancel()
-
 	client := database.NewMongoDb()
 	//activeNotams := client.RetrieveActiveNotams()
 	var identifiedNotams []notam.NotamReference
 	for code := range jpd.CodeList {
 		fmt.Printf("Retrieve NOTAM for %s \n", code)
 		notamSearch.location = code
-		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage)
+		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd)
 		fmt.Printf("\t Retrieve %d \n", len(notamReferences))
 
 		for _, notamRef := range notamReferences {
 			notam := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
 			//fmt.Println(notam)
-			if (client.IsNewNotam(&notam.NotamReference)) {
+			if client.IsNewNotam(&notam.NotamReference) {
 				client.AddNotam(notam)
 			}
 
@@ -90,7 +87,7 @@ func (jpd *JpData) Process() {
 
 }
 
-func structToMap(i interface{}) (values url.Values) {
+func structToUrlValues(i interface{}) (values url.Values) {
 	values = url.Values{}
 	iVal := reflect.ValueOf(i).Elem()
 	typ := iVal.Type()
