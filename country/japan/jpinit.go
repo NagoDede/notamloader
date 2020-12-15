@@ -1,7 +1,6 @@
 package japan
 
 import (
-	_ "context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,7 +11,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	_ "time"
+
+	"time"
 
 	"github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/notam"
@@ -36,55 +36,46 @@ type JpData struct {
 	LoginData    JpLoginFormData `json:"loginData"`
 }
 
-type WebConfig struct {
-	CountryDir      string `json:"country"`
-	LoginPage       string `json:"loginPage"`
-	NotamFirstPage  string `json:"notamFirstPage"`
-	NotamDetailPage string `json:"notamDetailPage"`
-	NotamNextPage   string `json:"notamNextPage"`
-}
-
 func (jpd *JpData) Process() {
-
+	startTime := time.Now()
 	jpd.LoadJsonFile("./country/japan/def.json")
-	httpClient := jpd.InitClient()
-	fmt.Println("Connected to AIS Japan")
+	jpd.Login()
 
-	//define a default NOTAM
-	//Use 24h duration, retrieve the advisory and warning notams
-	notamSearch := JpNotamSearchForm{
-		location:   "RJJJ",
-		notamKbn:   "",
-		period:     "24",
-		dispScopeA: "true",
-		dispScopeE: "true",
-		dispScopeW: "true",
-		firstFlg:   "true",
-	}
+	mongoClient := database.NewMongoDb()
 
-	client := database.NewMongoDb()
-	//activeNotams := client.RetrieveActiveNotams()
 	var identifiedNotams []notam.NotamReference
+	var newNotamCount = 0
 	for code := range jpd.CodeList {
-		fmt.Printf("Retrieve NOTAM for %s \n", code)
-		notamSearch.location = code
-		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd)
-		fmt.Printf("\t Retrieve %d \n", len(notamReferences))
+
+		fmt.Printf("Retrieve NOTAMs for %s \n", code)
+		searchRequest := CreateSearchRequest(code)
+		notamReferences := searchRequest.ListNotamReferences(&jpd.WebConfig)
+		fmt.Printf("\t Retrieve %d NOTAMs for %s \n", len(notamReferences), code)
 
 		for _, notamRef := range notamReferences {
-			notam := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-			//fmt.Println(notam)
-			if client.IsNewNotam(&notam.NotamReference) {
-				client.AddNotam(notam)
+			if !mongoClient.IsNewNotam(notamRef.NotamReference()) {
+				notam := notamRef.RetrieveNotam(jpd.WebConfig.httpClient, jpd.WebConfig.NotamDetailPage)
+				mongoClient.AddNotam(notam)
+				newNotamCount++
+				fmt.Printf("\t --> %+v \n", notam.NotamReference)
+			} else {
+				fmt.Printf("\t %+v \n", notamRef.NotamReference())
 			}
 
-			identifiedNotams = append(identifiedNotams, notam.NotamReference)
+			identifiedNotams = append(identifiedNotams, notamRef.NotamReference())
 		}
 	}
 
-	canceledNotams := client.IdentifyCanceledNotams(&identifiedNotams)
-	client.SetCanceledNotamList(canceledNotams)
+	canceledNotams := mongoClient.IdentifyCanceledNotams(&identifiedNotams)
+	mongoClient.SetCanceledNotamList(canceledNotams)
 
+	fmt.Println("** Report: ")
+	fmt.Printf("\t Identifed Notams: %d \n", len(identifiedNotams))
+	fmt.Printf("\t New Notams: %d \n", newNotamCount)
+	fmt.Printf("\t Canceled Notams: %d \n", len(*canceledNotams))
+
+	elapsed := time.Since(startTime)
+	log.Printf("Japan Notams tooks %s", elapsed)
 }
 
 func structToUrlValues(i interface{}) (values url.Values) {
@@ -171,18 +162,16 @@ func (jpd *JpData) loadCodeList(path string) {
 		panic(err)
 	}
 
-	// Unmarshal or Decode the JSON to the interface.
 	json.Unmarshal([]byte(jsonData), &jpd.CodeList)
 
-	fmt.Println(jpd.CodeList)
+	fmt.Printf("%d codes retrieved", len(jpd.CodeList))
 }
 
 /**
- * initClient inits an http client to connect to the website  by sending the
+ * Login inits an http client to connect to the website  by sending the
  * data to the formular.
  */
-func (jpd *JpData) InitClient() http.Client {
-
+func (jpd *JpData) Login() {
 	frmData := jpd.LoginData
 	//Create a cookie Jar to manage the login cookies
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -203,6 +192,10 @@ func (jpd *JpData) InitClient() http.Client {
 		log.Fatal(err)
 	}
 
+	//TODO confirm it is well connected
+	fmt.Println("Connected to AIS Japan")
+
 	defer resp.Body.Close()
-	return client
+	jpd.WebConfig.httpClient = client
+
 }

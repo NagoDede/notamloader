@@ -1,7 +1,7 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+// this is a template for the launch.json file for Visual Studio Code
+// It contains the relevant information but does not contain the passwords
+// and id
     "version": "0.2.0",
     "configurations": [
         {
@@ -11,8 +11,8 @@
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
             "env": {
-                "JAPAN_AIP_PWD": "qjf314",
-                "JAPAN_AIP_USERID": "vdetroyat"
+                "JAPAN_AIP_PWD": "",
+                "JAPAN_AIP_USERID": ""
             },
             "args": []
         }

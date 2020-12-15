@@ -30,6 +30,14 @@ type NotamCode struct {
 	Coordinates string `json:"coordinates"`
 }
 
+type NotamRetriever interface{
+	RetrieveNotam() Notam
+}
+
 func NewNotam() *Notam {
 	return new(Notam)
+}
+
+func GetNotam(nr NotamRetriever) Notam{
+	return nr.RetrieveNotam()
 }

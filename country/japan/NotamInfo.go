@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -27,17 +28,27 @@ type JpNotamDispForm struct {
 	dispFromTime string
 }
 
-
-//ToUrlValues converts the structure to an url.Values structure.
+// ToUrlValues converts the structure to an url.Values structure.
 func (ndf JpNotamDispForm) ToUrlValues() (values url.Values) {
 	return structToUrlValues(&ndf)
 }
 
-func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string) *notam.Notam {
+func (ndf JpNotamDispForm) NotamNumber() string {
+	nbr, _ := strconv.Atoi(ndf.notam_no)
+	year, _ := strconv.Atoi(ndf.notam_year)
 
-	
+	return fmt.Sprintf("%04d", nbr) + "/" + fmt.Sprintf("%02d", year)
+}
+
+func (ndf JpNotamDispForm) NotamReference() notam.NotamReference {
+	nbr := ndf.NotamNumber()
+	return notam.NotamReference{
+		Icaolocation: ndf.location,
+		Number:       nbr}
+}
+
+func (ndf *JpNotamDispForm) RetrieveNotam(httpClient http.Client, url string) *notam.Notam {
 	resp, _ := httpClient.PostForm(url, ndf.ToUrlValues())
-
 	notam := notamText(resp.Body)
 	resp.Body.Close()
 	return notam
@@ -75,7 +86,6 @@ func notamText(body io.ReadCloser) *notam.Notam {
 
 	doc.Find(`td[class="txt-notam"]`).Each(
 		func(index int, a *goquery.Selection) {
-			fmt.Println(a.Text())
 			fillNumber(index, a, notam)
 			fillNotamCode(index, a, notam)
 			fillIcaoLocation(index, a, notam)
@@ -85,7 +95,7 @@ func notamText(body io.ReadCloser) *notam.Notam {
 			fillUpperLimit(index, a, notam)
 		})
 
-	fmt.Printf("%#v\n", notam)
+	//fmt.Printf("%#v\n", notam)
 	return notam
 }
 

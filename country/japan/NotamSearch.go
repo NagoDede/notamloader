@@ -2,8 +2,6 @@ package japan
 
 import (
 	"fmt"
-	"log"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -27,89 +25,70 @@ type JpNotamSearchForm struct {
 	itemE      string `json:"itemE"`
 }
 
-var pages = 1              //use to count the pages (display only)
-var httpClient http.Client //share the httpClient
-var jpData *JpData         //store the japan website data
+var pages = 1 //use to count the pages (display only)
 
-//Values used to generate a Next webpage request
-var nextFormData = url.Values{
-	"anchor": {"next"},
+func CreateSearchRequest(code string) JpNotamSearchForm {
+	return JpNotamSearchForm{
+		location:   code,
+		notamKbn:   "",
+		period:     "24",
+		dispScopeA: "true",
+		dispScopeE: "true",
+		dispScopeW: "true",
+		firstFlg:   "true",
+	}
 }
 
-//ToUrlValues converts the structure to an url.Values structure.
+// ToUrlValues converts the structure to an url.Values structure.
 func (nsf JpNotamSearchForm) ToUrlValues() (values url.Values) {
 	return structToUrlValues(&nsf)
 }
 
-/* ListNotamReferences retrieves and lists the Notams identified on the Japan Notam website.
-If Notams are printed on several pages, it retrieves the Notams on all the pages.
-httpClient is the client initialized to the Japan Notam website.
-*/
-func (nsf JpNotamSearchForm) ListNotamReferences(httpClient http.Client, jpd *JpData) []*JpNotamDispForm {
+// ListNotamReferences retrieves and lists the Notams identified on the Japan Notam website.
+// If Notams are printed on several pages, it retrieves the Notams on all the pages.
+// httpClient is the client initialized to the Japan Notam website.
+func (nsf JpNotamSearchForm) ListNotamReferences(web *WebConfig) []*JpNotamDispForm {
 
-	jpData = jpd
 	pages = 1
-
 	var notamRefs []*JpNotamDispForm //will contain the results
 
-	//Send the request to the NotamFirstPage
-	resp, err := httpClient.PostForm(jpd.WebConfig.NotamFirstPage, nsf.ToUrlValues())
-	if err != nil {
-		log.Println("If error due to certificate problem, install ca-certificates")
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
+	doc := web.GetFirstPage(nsf.ToUrlValues())
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		fmt.Println("No url found for navaid extraction")
-		log.Fatal(err)
-	}
-	notamRefs = listNotams(doc, notamRefs, httpClient)
+	fmt.Print("Page: ")
+	notamRefs = listNotams(doc, notamRefs, web)
+	fmt.Print("\n")
 	return notamRefs
 }
 
-/* 	listNotams lists the notam on the current webpage.
-If there is several webpages, run accross them by using the getNextPages function.
-*/
-func listNotams(doc *goquery.Document, notamRefs []*JpNotamDispForm, httpClient http.Client) []*JpNotamDispForm {
-	//read the current webpages
+// listNotams lists the notam on the current webpage.
+// If there is several webpages, run accross them by using the getNextPages function.
+func listNotams(doc *goquery.Document, notamRefs []*JpNotamDispForm, web *WebConfig) []*JpNotamDispForm {
+	// read the first webpage
+	fmt.Printf("%d ", pages)
+	// retrieve the relevant information from the data used in the href attributes
 	doc.Find(`a[href*="javascript:formSubmit"]`).Each(
 		func(index int, a *goquery.Selection) {
 			href, _ := a.Attr("href")
-
 			notamRefs = append(notamRefs, extractFormData(href))
 		})
 
-	return getNextPages(doc, notamRefs, httpClient)
+	return doNextPage(doc, notamRefs, web)
 }
 
 /**
-getNextPages identifies if there is other pages. If yes, it sends the request to get the next page.
+doNextPage identifies if there is other pages. If yes, it sends the request to get the next page.
+If no, it returns the current list of notam references.
 It is an iterative function, throught the listNotams function.
 */
-func getNextPages(doc *goquery.Document, notamRefs []*JpNotamDispForm, httpClient http.Client) []*JpNotamDispForm {
+func doNextPage(doc *goquery.Document, notamRefs []*JpNotamDispForm, web *WebConfig) []*JpNotamDispForm {
 
 	thereIsNext := len(doc.Find(`a[onclick="javascript:postLink('next')"]`).Nodes) > 0
 
 	if thereIsNext {
 
 		pages++
-		fmt.Printf("Go to page %d \n", pages)
-
-		resp, err := httpClient.PostForm(jpData.NotamNextPage, nextFormData)
-		if err != nil {
-			log.Println("If error due to certificate problem, install ca-certificates")
-			log.Fatal(err)
-		}
-		defer resp.Body.Close()
-
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
-		if err != nil {
-			fmt.Println("No url found for navaid extraction")
-			log.Fatal(err)
-		}
-		notamRefs = listNotams(doc, notamRefs, httpClient)
+		newdoc := web.GetNextPage()
+		notamRefs = listNotams(newdoc, notamRefs, web)
 	}
 	return notamRefs
 }
