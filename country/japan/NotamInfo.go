@@ -94,8 +94,6 @@ func notamText(body io.ReadCloser) *notam.Notam {
 			fillLowerLimit(index, a, notam)
 			fillUpperLimit(index, a, notam)
 		})
-
-	//fmt.Printf("%#v\n", notam)
 	return notam
 }
 
@@ -120,7 +118,7 @@ func fillNotamCode(index int, a *goquery.Selection, notam *notam.Notam) *notam.N
 	return notam
 }
 
-func fillNumber(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {
+func fillNumber(index int, a *goquery.Selection, ntm *notam.Notam) *notam.Notam {
 	//Get the NOTAM code identified by Q) and clean it.
 	re := regexp.MustCompile("(?s)\\(.*?\n")
 	q := strings.TrimSpace(re.FindString(a.Text()))
@@ -136,19 +134,17 @@ func fillNumber(index int, a *goquery.Selection, notam *notam.Notam) *notam.Nota
 	}
 
 	if len(splitted) == 1 {
-		notam.Number = strings.TrimSpace(splitted[0])
-		notam.Status = "Error"
+		ntm.Number = strings.TrimSpace(splitted[0])
+		ntm.Status = notam.Error
 	} else {
-		notam.Number = strings.TrimSpace(splitted[0])
-		notam.Identifier = strings.TrimSpace(splitted[1])
+		ntm.Number = strings.TrimSpace(splitted[0])
+		ntm.Identifier = strings.TrimSpace(splitted[1])
 
-		if (notam.Identifier == "NOTAMR") || (notam.Identifier == "NOTAMR") {
-			notam.Replace = strings.TrimSpace(splitted[2])
+		if (ntm.Identifier == "NOTAMR") || (ntm.Identifier == "NOTAMC") {
+			ntm.Replace = strings.TrimSpace(splitted[2])
 		}
-
-		notam.Status = "Operable"
 	}
-	return notam
+	return ntm
 }
 
 func fillIcaoLocation(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {
@@ -163,7 +159,7 @@ func fillIcaoLocation(index int, a *goquery.Selection, notam *notam.Notam) *nota
 	return notam
 }
 
-func fillDates(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {
+func fillDates(index int, a *goquery.Selection, ntm *notam.Notam) *notam.Notam {
 	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by A) and clean it.
 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
@@ -176,14 +172,16 @@ func fillDates(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam
 	splitted := strings.Split(q, "C)")
 
 	if len(splitted) == 1 {
-		notam.Status = "Error"
+		ntm.Status = notam.Error
 	} else if len(splitted) == 2 {
-		notam.FromDate = splitted[0][0:10]
-		notam.ToDate = splitted[1][0:10]
+		ntm.FromDate = splitted[0][0:10]
+		ntm.ToDate = splitted[1][0:10]
+		ntm.FromDateDecoded = notam.NotamDateToTime(ntm.FromDate)
+		ntm.ToDateDecoded = notam.NotamDateToTime(ntm.ToDate)
 	} else {
-		notam.Status = "Error"
+		ntm.Status = notam.Error
 	}
-	return notam
+	return ntm
 }
 
 func fillText(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {

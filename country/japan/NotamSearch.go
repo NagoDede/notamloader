@@ -31,7 +31,7 @@ func CreateSearchRequest(code string) JpNotamSearchForm {
 	return JpNotamSearchForm{
 		location:   code,
 		notamKbn:   "",
-		period:     "24",
+		period:     "72",
 		dispScopeA: "true",
 		dispScopeE: "true",
 		dispScopeW: "true",

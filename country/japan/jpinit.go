@@ -44,6 +44,7 @@ func (jpd *JpData) Process() {
 	mongoClient := database.NewMongoDb()
 
 	var identifiedNotams []notam.NotamReference
+	var newNotams []*notam.NotamReference
 	var newNotamCount = 0
 	for code := range jpd.CodeList {
 
@@ -53,16 +54,18 @@ func (jpd *JpData) Process() {
 		fmt.Printf("\t Retrieve %d NOTAMs for %s \n", len(notamReferences), code)
 
 		for _, notamRef := range notamReferences {
+			identifiedNotams = append(identifiedNotams, notamRef.NotamReference())
 			if !mongoClient.IsNewNotam(notamRef.NotamReference()) {
 				notam := notamRef.RetrieveNotam(jpd.WebConfig.httpClient, jpd.WebConfig.NotamDetailPage)
 				mongoClient.AddNotam(notam)
 				newNotamCount++
+				tp := &identifiedNotams[len(identifiedNotams)-1]
+				newNotams = append(newNotams, tp)
 				fmt.Printf("\t --> %+v \n", notam.NotamReference)
 			} else {
 				fmt.Printf("\t %+v \n", notamRef.NotamReference())
 			}
 
-			identifiedNotams = append(identifiedNotams, notamRef.NotamReference())
 		}
 	}
 
@@ -72,6 +75,10 @@ func (jpd *JpData) Process() {
 	fmt.Println("** Report: ")
 	fmt.Printf("\t Identifed Notams: %d \n", len(identifiedNotams))
 	fmt.Printf("\t New Notams: %d \n", newNotamCount)
+	for _, ntm := range newNotams {
+		fmt.Printf(" %+v", *ntm)
+	}
+
 	fmt.Printf("\t Canceled Notams: %d \n", len(*canceledNotams))
 
 	elapsed := time.Since(startTime)

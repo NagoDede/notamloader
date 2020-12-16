@@ -2,9 +2,11 @@ package database
 
 import (
 	"context"
-
+	"fmt"
 	"log"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/NagoDede/notamloader/notam"
 	. "github.com/ahmetb/go-linq"
@@ -49,12 +51,16 @@ func getClient() *mongo.Client {
 	return client
 }
 
-func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
-	_, err := notamCollection.InsertOne(ctx, notam)
-	mgdb.activeNotams = append(mgdb.activeNotams, notam.NotamReference)
+// Add a NOTAM in the notam Database.
+func (mgdb *Mongodb) AddNotam(ntm *notam.Notam) {
+	_, err := notamCollection.InsertOne(ctx, ntm)
 	if err != nil {
 		log.Fatal(err)
 	}
+	if ntm.Status == notam.Operable {
+		mgdb.activeNotams = append(mgdb.activeNotams, ntm.NotamReference)
+	}
+
 }
 
 func (mgdb *Mongodb) GetActiveNotamsInDb() []notam.NotamReference {
@@ -64,7 +70,7 @@ func (mgdb *Mongodb) GetActiveNotamsInDb() []notam.NotamReference {
 
 //
 func (mgdb *Mongodb) retrieveActiveNotams() []notam.NotamReference {
-	filter := bson.D{{"status", "Operable"}}
+	filter := bson.D{{"status", notam.Operable}}
 	projection := bson.D{
 		{"notamreference.number", 1},
 		{"notamreference.icaolocation", 1},
@@ -84,9 +90,11 @@ func (mgdb *Mongodb) retrieveActiveNotams() []notam.NotamReference {
 		if err != nil {
 			log.Fatal(err)
 		}
-		notams = append(notams, notam.NotamReference{
-			Number:       elem.Number,
-			Icaolocation: elem.Icaolocation})
+		if strings.TrimSpace(elem.Number) != "" || strings.TrimSpace(elem.Icaolocation) != "" {
+			notams = append(notams, notam.NotamReference{
+				Number:       elem.Number,
+				Icaolocation: elem.Icaolocation})
+		}
 	}
 	return notams
 }
@@ -120,14 +128,15 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams *[]notam.NotamReference
 func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamReference) {
 	if len(*canceledNotams) > 0 {
 		for _, canceled := range *canceledNotams {
-			filter := bson.M{"status": "Operable",
-				"number":       canceled.Number,
-				"icaolocation": canceled.Icaolocation}
+			filter := bson.M{"status": notam.Operable,
+				"notamreference.number":       canceled.Number,
+				"notamreference.icaolocation": canceled.Icaolocation}
 
 			setCancel := bson.D{
-				{"$set", bson.D{{"status", "Canceled"}}},
+				{"$set", bson.D{{"status", notam.Canceled}}},
+				{"$set", bson.D{{"canceldate", time.Now()}}},
 			}
-
+			fmt.Printf("<-- %+v \n", canceled)
 			notamCollection.UpdateMany(ctx, filter, setCancel)
 		}
 	}
