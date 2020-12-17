@@ -1,19 +1,17 @@
 package japan
 
 import (
+	"errors"
 	"fmt"
-
+	"time"
 	"github.com/NagoDede/notamloader/notam"
-
 	"io"
-	_ "io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -121,8 +119,8 @@ func fillNotamCode(index int, a *goquery.Selection, notam *notam.Notam) *notam.N
 func fillNumber(index int, a *goquery.Selection, ntm *notam.Notam) *notam.Notam {
 	//Get the NOTAM code identified by Q) and clean it.
 	re := regexp.MustCompile("(?s)\\(.*?\n")
-	q := strings.TrimSpace(re.FindString(a.Text()))
-	q = strings.TrimRight(q, " \r\n")
+	str := strings.TrimSpace(re.FindString(a.Text()))
+	q := strings.TrimRight(str, " \r\n")
 	q = strings.TrimLeft(q, "(")
 	//Usually the NOTAM uses the non break space
 	//defines the non break space
@@ -135,6 +133,7 @@ func fillNumber(index int, a *goquery.Selection, ntm *notam.Notam) *notam.Notam 
 
 	if len(splitted) == 1 {
 		ntm.Number = strings.TrimSpace(splitted[0])
+		log.Printf("Unable to retrieve NOTAM identifier from %s for NOTAM %+v", str, ntm.NotamReference)
 		ntm.Status = notam.Error
 	} else {
 		ntm.Number = strings.TrimSpace(splitted[0])
@@ -148,37 +147,97 @@ func fillNumber(index int, a *goquery.Selection, ntm *notam.Notam) *notam.Notam 
 }
 
 func fillIcaoLocation(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {
-	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by A) and clean it.
 	re := regexp.MustCompile("(?s)A\\).*?B\\)")
 	q := strings.TrimSpace(re.FindString(a.Text()))
 	q = strings.TrimRight(q, "B)")
-	q = strings.TrimRight(q, ubkspace)
 	q = strings.TrimLeft(q, "A)")
+	q = cleanSpaces(q)
 	notam.Icaolocation = q
 	return notam
 }
 
+func dateExtract(s string) (string, error) {
+	s = cleanSpaces(s)
+
+	if strings.Contains(s, "PERM") {
+		return "PERM", nil
+	} else if strings.Contains(s, "UFN") {
+		return "UFN", nil
+	} else if len(s) >= 10 {
+		if strings.Contains(s, "EST") {
+			return s[0:13], nil
+		} else {
+			dateval := s[0:10]
+			if _, err := strconv.Atoi(dateval); err == nil {
+				return dateval, nil
+			} else {
+				log.Printf("Date conversion error: retrieved value %s", s)
+				return "", errors.New("Date conversion error")
+			}
+		}
+	} else {
+		log.Printf("Date conversion error: retrieved value %s", s)
+		return "", errors.New("Date conversion error")
+	}
+}
+
+// Removes the unecessary spaces (including unbreakable spaces)
+// of the current string.
+// All unbreakable spaces will be replaces by standard space.
+func cleanSpaces(s string) string {
+	const ubkspace = "\xC2\xA0"
+	s = strings.ReplaceAll(s, ubkspace, " ")
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "  ", " ")
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	return s
+}
+
 func fillDates(index int, a *goquery.Selection, ntm *notam.Notam) *notam.Notam {
 	const ubkspace = "\xC2\xA0"
-	//Get the icao location identified by A) and clean it.
 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
-	q := strings.TrimSpace(re.FindString(a.Text()))
-	q = strings.TrimLeft(q, "B)")
+	retrieved := cleanSpaces(re.FindString(a.Text()))
+	q := strings.TrimLeft(retrieved, "B)")
+	q = strings.TrimRight(q, "E)")
 	q = strings.TrimRight(q, "D)")
 	q = strings.TrimRight(q, "\r\n")
-	q = strings.TrimRight(q, ubkspace)
+	q = cleanSpaces(q)
 
 	splitted := strings.Split(q, "C)")
+	if len(splitted) == 2 {
 
-	if len(splitted) == 1 {
-		ntm.Status = notam.Error
-	} else if len(splitted) == 2 {
-		ntm.FromDate = splitted[0][0:10]
-		ntm.ToDate = splitted[1][0:10]
-		ntm.FromDateDecoded = notam.NotamDateToTime(ntm.FromDate)
-		ntm.ToDateDecoded = notam.NotamDateToTime(ntm.ToDate)
+		ntmdte, err := dateExtract(splitted[0])
+		if err != nil {
+			log.Printf("Date conversion error: retrieved fields %s \n notam: %+v \n", retrieved, ntm)
+			ntm.Status = notam.Error
+		} else {
+			ntm.FromDate = ntmdte
+		}
+
+		ntmdte, err = dateExtract(splitted[1])
+		if err != nil {
+			log.Printf("Date conversion error: retrieved fields %s \n notam: %+v \n", retrieved, ntm)
+			ntm.Status = notam.Error
+		} else {
+			ntm.ToDate = ntmdte
+		}
+
+		if ntm.FromDate != "PERM" || ntm.FromDate != "UFN" {
+			ntm.FromDateDecoded = notam.NotamDateToTime(ntm.FromDate)
+		} else {
+			//assume permanent validty or UFN  is 10 years
+			ntm.FromDateDecoded = time.Now().AddDate(10, 0, 0)
+		}
+		if ntm.ToDate != "PERM" || ntm.ToDate != "UFN" {
+			ntm.ToDateDecoded = notam.NotamDateToTime(ntm.ToDate)
+		} else {
+			ntm.ToDateDecoded = time.Now().AddDate(10, 0, 0)
+		}
 	} else {
+		log.Printf("Date conversion error: retrieved fields%s \n notam: %+v \n", retrieved, ntm)
 		ntm.Status = notam.Error
 	}
 	return ntm

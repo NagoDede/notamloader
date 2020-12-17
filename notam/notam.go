@@ -1,8 +1,6 @@
 package notam
 
 import (
-	"fmt"
-	"math"
 	"time"
 )
 
@@ -39,13 +37,9 @@ type NotamCode struct {
 	Traffic     string `json:"traffic"`
 	Purpose     string `json:"purpose"`
 	Scope       string `json:"scope"`
-	LowerLimit  string `json:"lozerlimit"`
+	LowerLimit  string `json:"lowerlimit"`
 	UpperLimit  string `json:"upperlimit"`
 	Coordinates string `json:"coordinates"`
-}
-
-type NotamRetriever interface {
-	RetrieveNotam() Notam
 }
 
 type NotamStatus int
@@ -61,26 +55,7 @@ func NewNotam() *Notam {
 	return ntm
 }
 
-func GetNotam(nr NotamRetriever) Notam {
-	return nr.RetrieveNotam()
-}
-
-// Converts the NOTAM date (yymmddhhmm) to date
-// The Golang date parse is limited to
-func NotamDateToTime(ndte string) time.Time {
-	layout := "0601021504"
-
-	loc, _ := time.LoadLocation("UTC")
-	parsedate, _ := time.ParseInLocation(layout, ndte, loc)
-	// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated as 19NN and a value NN < 69 will be treated as 20NN.
-	if parsedate.Year() < time.Now().Year() {
-		var mil float64
-		mil = float64(time.Now().Year() / 100.0)
-		mil, _ = math.Modf(mil)
-		ndte = fmt.Sprintf("%d%s", int(mil), ndte)
-		layout := "200601021504"
-		parsedate, _ = time.ParseInLocation(layout, ndte, loc)
-	}
-
-	return parsedate
+func ValidateNotamDate(s string) bool {
+	//(?P<year>\d{2})(?P<month>0[1-9]|1[0-2])(?P<day>0[1-9]|[1-2]\d|3[0-1])(?P<hour>[0-1]\d|2[0-3])(?P<min>[0-5]\d)(\s*EST)*|PERM
+	return false
 }

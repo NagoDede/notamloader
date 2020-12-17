@@ -59,8 +59,8 @@ func (jpd *JpData) Process() {
 				notam := notamRef.RetrieveNotam(jpd.WebConfig.httpClient, jpd.WebConfig.NotamDetailPage)
 				mongoClient.AddNotam(notam)
 				newNotamCount++
-				tp := &identifiedNotams[len(identifiedNotams)-1]
-				newNotams = append(newNotams, tp)
+				//tp := &identifiedNotams[len(identifiedNotams)-1]
+				newNotams = append(newNotams, &notam.NotamReference)
 				fmt.Printf("\t --> %+v \n", notam.NotamReference)
 			} else {
 				fmt.Printf("\t %+v \n", notamRef.NotamReference())
@@ -79,7 +79,7 @@ func (jpd *JpData) Process() {
 		fmt.Printf(" %+v", *ntm)
 	}
 
-	fmt.Printf("\t Canceled Notams: %d \n", len(*canceledNotams))
+	fmt.Printf("\n \t Canceled Notams: %d \n", len(*canceledNotams))
 
 	elapsed := time.Since(startTime)
 	log.Printf("Japan Notams tooks %s", elapsed)
