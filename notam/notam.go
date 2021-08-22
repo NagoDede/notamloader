@@ -2,16 +2,16 @@ package notam
 
 type Notam struct {
 	NotamReference
-	Identifier   string `json:"identifier"`
-	Replace      string `json:"replace"`
-	NotamCode    NotamCode
-	FromDate     string
-	ToDate       string
-	Schedule     string
-	Text         string
-	LowerLimit   string
-	UpperLimit   string
-	Status		 string
+	Identifier string `json:"identifier"`
+	Replace    string `json:"replace"`
+	NotamCode  NotamCode
+	FromDate   string
+	ToDate     string
+	Schedule   string
+	Text       string
+	LowerLimit string
+	UpperLimit string
+	Status     string
 }
 
 type NotamReference struct {
@@ -25,7 +25,7 @@ type NotamCode struct {
 	Traffic     string `json:"traffic"`
 	Purpose     string `json:"purpose"`
 	Scope       string `json:"scope"`
-	LowerLimit  string `json:"lozerlimit"`
+	LowerLimit  string `json:"lowerlimit"`
 	UpperLimit  string `json:"upperlimit"`
 	Coordinates string `json:"coordinates"`
 }
