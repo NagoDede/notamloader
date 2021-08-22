@@ -32,8 +32,20 @@ type JpLoginFormData struct {
 type JpData struct {
 	WebConfig
 	CodeListPath string `json:"codeListPath"`
-	CodeList     map[string]interface{}
+	CodeList     JpCodeFile //map[string]interface{}
 	LoginData    JpLoginFormData `json:"loginData"`
+}
+
+type JpCodeFile struct {
+	IsActive	bool `json:"IsActive"`
+	EffectiveDate string `json:"EffectiveDate"`
+	CountryCode string `json:"CountryCode"`
+	Airports []JpAirports `json:"Airports"`
+}
+
+type JpAirports struct {
+	Icao 	string `json:"Icao"`
+	Title	string `json:"Title"`
 }
 
 type WebConfig struct {
@@ -68,9 +80,9 @@ func (jpd *JpData) Process() {
 	client := database.NewMongoDb()
 	//activeNotams := client.RetrieveActiveNotams()
 	var identifiedNotams []notam.NotamReference
-	for code := range jpd.CodeList {
-		fmt.Printf("Retrieve NOTAM for %s \n", code)
-		notamSearch.location = code
+	for _, apt := range jpd.CodeList.Airports{
+		fmt.Printf("Retrieve NOTAM for %s \n", apt.Icao)
+		notamSearch.location = apt.Icao
 		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage)
 		fmt.Printf("\t Retrieve %d \n", len(notamReferences))
 

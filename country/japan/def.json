@@ -9,5 +9,6 @@
  "notamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
  "notamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
  "notamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",
- "codeListPath":"https://nagodede.github.io/aip/japan/documents/codes.json"
+C "codeListPath":"https://raw.githubusercontent.com/NagoDede/nagodede.github.io/master/aip/japan/documents/info.json",
+ "oldval":"https://nagodede.github.io/aip/japan/documents/codes.json"
 }
