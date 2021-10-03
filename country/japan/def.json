@@ -9,6 +9,10 @@
  "notamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
  "notamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
  "notamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",
+ "__notes__":"Contains all the airports ICAO codes",
  "codeListPath":"https://raw.githubusercontent.com/NagoDede/nagodede.github.io/master/aip/japan/documents/info.json",
- "oldval":"https://nagodede.github.io/aip/japan/documents/codes.json"
+ "__oldval__":"https://nagodede.github.io/aip/japan/documents/codes.json",
+ "__notes_":"The following NOTAM location indicators are extracted from the AIS Japan. It contains dedicated NOTAM Location indicators",
+ "__notes_":"No worries if a code appears, tool will keep only one",
+ "requiredLocation":["RJAA","RJBB","RJCC","RJTT","RJFF","RJGG","ROAH","RJSS","RJCH","RJSN","RJOO","RJOA","RJOB","RJOT","RJFU","RJFT","RJFO","RJFK","RJEC","RJCK","RJSK","RJDC","RJOM","RJFR","RJFM","RJSA","RJSI","RJSF","RJNT","RJNS","RJFS","ROIG","RJAH","RJNK","RJOH","RJOS","RJCB","RJCM","RJOK","RJBE","RORS","RJNA","RJCJ","RJAW","RJCW","RJCN","RJEB","RJSM","RJSR","RJSC","RJSY","RJTH","RJNW","RJAF","RJBD","RJOR","RJNO","RJOC","RJOW","RJFE","RJFG","RJKA","RJKN","ROKJ","ROMY","ROYN","RJOI","RJCR","RJCO","RJER","RJEO","RJSD","RJTO","RJTF","RJAN","RJTQ","RJAZ","RJNF","RJOY","RJBT","RJBK","RJDT","RJDO","RJDK","RJDA","RJDA","RJDB","RJFC","RJKI","RJKB","RORY","RORK","ROMD","ROKR","RORA","RORE","RORT","RORH","RJFH","RJTI","RJTY","RJTR","RODN","ROTM","RJJJ","RJTD","RJDR","ROBL","RJJW","RJJX","RJJY","RJJZ"]
 }

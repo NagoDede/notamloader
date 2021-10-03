@@ -1,10 +1,11 @@
 package japan
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/NagoDede/notamloader/notam"
 
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	_ "io/ioutil"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type JpNotamDispForm struct {
@@ -25,14 +28,22 @@ type JpNotamDispForm struct {
 	dispFromTime string
 }
 
-func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string) *notam.Notam {
+
+
+func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string) (*notam.Notam, error) {
 
 	urlValues := structToMap(ndf)
 	resp, _ := httpClient.PostForm(url, urlValues)
 
+	if (resp != nil)  {
 	notam := notamText(resp.Body)
 	resp.Body.Close()
-	return notam
+	return notam, nil
+	} else {
+		fmt.Println("Error in Fill Information")
+		return nil, errors.New("Nil answer")
+	}
+
 }
 
 func postNotamDetail(client http.Client, data url.Values, url string) (resp *http.Response, err error) {
@@ -67,7 +78,7 @@ func notamText(body io.ReadCloser) *notam.Notam {
 
 	doc.Find(`td[class="txt-notam"]`).Each( 
 		func (index int, a *goquery.Selection){
-		fmt.Println(a.Text())
+		//fmt.Println(a.Text())
 		fillNumber(index, a, notam)
 		fillNotamCode(index, a, notam)
 		fillIcaoLocation(index, a, notam)
@@ -77,7 +88,7 @@ func notamText(body io.ReadCloser) *notam.Notam {
 		fillUpperLimit(index,a,notam)
 		})
 
-	fmt.Printf("%#v\n",notam)
+	//fmt.Printf("%#v\n",notam)
 	return notam
 }
 

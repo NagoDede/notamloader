@@ -4,7 +4,6 @@ import (
 	_ "context"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/publicsuffix"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,9 +13,10 @@ import (
 	"reflect"
 	"strings"
 	_ "time"
-	 "github.com/NagoDede/notamloader/database"
-	 "github.com/NagoDede/notamloader/notam"
 
+	"github.com/NagoDede/notamloader/database"
+	"github.com/NagoDede/notamloader/notam"
+	"golang.org/x/net/publicsuffix"
 )
 
 var JapanAis JpData
@@ -31,21 +31,22 @@ type JpLoginFormData struct {
 
 type JpData struct {
 	WebConfig
-	CodeListPath string `json:"codeListPath"`
-	CodeList     JpCodeFile //map[string]interface{}
-	LoginData    JpLoginFormData `json:"loginData"`
+	CodeListPath     string          `json:"codeListPath"`
+	CodeList         JpCodeFile      //map[string]interface{}
+	LoginData        JpLoginFormData `json:"loginData"`
+	RequiredLocation []string        `json:"requiredLocation"`
 }
 
 type JpCodeFile struct {
-	IsActive	bool `json:"IsActive"`
-	EffectiveDate string `json:"EffectiveDate"`
-	CountryCode string `json:"CountryCode"`
-	Airports []JpAirports `json:"Airports"`
+	IsActive      bool         `json:"IsActive"`
+	EffectiveDate string       `json:"EffectiveDate"`
+	CountryCode   string       `json:"CountryCode"`
+	Airports      []JpAirports `json:"Airports"`
 }
 
 type JpAirports struct {
-	Icao 	string `json:"Icao"`
-	Title	string `json:"Title"`
+	Icao  string `json:"Icao"`
+	Title string `json:"Title"`
 }
 
 type WebConfig struct {
@@ -80,20 +81,33 @@ func (jpd *JpData) Process() {
 	client := database.NewMongoDb()
 	//activeNotams := client.RetrieveActiveNotams()
 	var identifiedNotams []notam.NotamReference
-	for _, apt := range jpd.CodeList.Airports{
+	for _, apt := range jpd.CodeList.Airports {
 		fmt.Printf("Retrieve NOTAM for %s \n", apt.Icao)
 		notamSearch.location = apt.Icao
-		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage)
+		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
 		fmt.Printf("\t Retrieve %d \n", len(notamReferences))
 
 		for _, notamRef := range notamReferences {
-			notam := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
+			notam, err := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
 			//fmt.Println(notam)
-			if (client.IsNewNotam(&notam.NotamReference)) {
-				client.AddNotam(notam)
+			if err == nil {
+				if client.IsNewNotam(&notam.NotamReference) {
+					client.AddNotam(notam)
+					identifiedNotams = append(identifiedNotams, notam.NotamReference)
+				}
+			} else {
+				httpClient = jpd.InitClient()
+				notam, err1 := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
+				if err1 != nil {
+					if client.IsNewNotam(&notam.NotamReference) {
+						client.AddNotam(notam)
+						identifiedNotams = append(identifiedNotams, notam.NotamReference)
+					}
+				} else {
+					fmt.Println(err1)
+				}
 			}
 
-			identifiedNotams = append(identifiedNotams, notam.NotamReference)
 		}
 	}
 
@@ -122,7 +136,6 @@ of the environment variable ENV_VARIABLE_NAME.
 If the environment variable does not exist or is empty, it generates a panic.
 To define an empty password, just set Password = ""  in the Json file.
 The same beahavior is extended to the User ID.
-
 */
 func (jpd *JpData) LoadJsonFile(path string) {
 	// Open our jsonFile
@@ -188,9 +201,30 @@ func (jpd *JpData) loadCodeList(path string) {
 
 	// Unmarshal or Decode the JSON to the interface.
 	json.Unmarshal([]byte(jsonData), &jpd.CodeList)
+	jpd.mergeAllLocationsCodes()
 
 	fmt.Println(jpd.CodeList)
+
 }
+
+func (jpd *JpData) mergeAllLocationsCodes() {
+	for _, code := range jpd.RequiredLocation {
+		if !jpd.IsAirportCode(code) {
+			apt := JpAirports{code, ""}
+			jpd.CodeList.Airports = append(jpd.CodeList.Airports, apt)
+		}
+	}
+}
+
+func (jpd *JpData) IsAirportCode(code string) bool {
+	for _, apt := range jpd.CodeList.Airports {
+			if (apt.Icao == code) {
+				return true
+			}
+	}
+	return false
+}
+
 
 /**
  * initClient inits an http client to connect to the website  by sending the

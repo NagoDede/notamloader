@@ -65,8 +65,8 @@ func (mgdb *Mongodb) GetActiveNotamsInDb() *[]notam.NotamReference {
 func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamReference {
 	filter := bson.D{{"status", "Operable"}}
 	projection := bson.D{
-		{"number", 1},
-		{"icaolocation", 1},
+		{"notamreference.number", 1},
+		{"notamreference.icaolocation", 1},
 		{"status", 1},
 	}
 	
@@ -82,6 +82,11 @@ func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamReference {
 }
 
 func (mgdb Mongodb) IsNewNotam(ntm *notam.NotamReference) bool {
+
+	if *mgdb.activeNotams == nil {
+		return true
+	}
+
 	for _, ntmref := range *mgdb.activeNotams {
 		if ntmref.Icaolocation == ntm.Icaolocation && 
 			ntmref.Number == ntm.Number {
