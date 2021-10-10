@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"reflect"
 	"strings"
-	_ "time"
+	"time"
 
 	"github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/notam"
@@ -53,7 +54,6 @@ type jpAirports struct {
 	Title string `json:"Title"`
 }
 
-
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
 // It recovers the relevant information from a json file, set in ./country/japan/def.json.
 // Then, it initiates the http and mongodb interfaces.
@@ -88,41 +88,62 @@ func (jpd *JpData) Process() {
 
 	var identifiedNotams []notam.NotamReference
 
+	rand.Seed(time.Now().UnixNano())
+
 	//Identify the NOTAM associated to an ICAO code (usually associated to an airport)
 	for _, apt := range jpd.codeList.Airports {
 		fmt.Printf("Retrieving NOTAM for %s \n", apt.Icao)
 		notamSearch.location = apt.Icao
 		//retrieve all the NOTAM references associated to the ICAO code
+		//func() {
 		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
 		fmt.Printf("\t %d NOTAM reference(s) identified \n", len(notamReferences))
 
 		//thanks the NOTAM reference, we gather the NOTAM information from the NotamDeatilPage
 		for _, notamRef := range notamReferences {
-			notam, err := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-			//fmt.Println(notam)
-			if err == nil {
-				if client.IsNewNotam(&notam.NotamReference) {
-					client.AddNotam(notam)
-					identifiedNotams = append(identifiedNotams, notam.NotamReference)
+			//extract the data from the webpage
+			go func(ref JpNotamDispForm) {
+				fmt.Printf("Ask data for %s - %s \n", ref.location, ref.notam_no)
+				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+				notam, err := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
+				if len(notam.Text) <= 20 {
+					fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text)
+				} else {
+					fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text[0:20])
 				}
-			} else {
-				httpClient = jpd.initClient()
-				notam, err1 := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-				if err1 != nil {
+
+				//no error, log theNOTAM in the Databse if it is a new one
+				if err == nil {
 					if client.IsNewNotam(&notam.NotamReference) {
 						client.AddNotam(notam)
 						identifiedNotams = append(identifiedNotams, notam.NotamReference)
+						fmt.Printf("!!!! --> Identified New Notams: %d", len(identifiedNotams))
+					} else {
+						fmt.Printf("Not new - %s - %s \n", notam.Icaolocation, notam.Number)
 					}
 				} else {
-					fmt.Println(err1)
+					//there is an error, reset the client and start again
+					fmt.Printf("\t Error to recover NOTAM %s - %s \n", ref.location, ref.notam_no)
+					httpClient = jpd.initClient()
+					notam, err1 := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
+					if err1 != nil {
+						if client.IsNewNotam(&notam.NotamReference) {
+							client.AddNotam(notam)
+							identifiedNotams = append(identifiedNotams, notam.NotamReference)
+						}
+					} else {
+						fmt.Println(err1)
+					}
 				}
-			}
+			}(notamRef)
 		}
+		//}()
 	}
-
+	fmt.Printf("New NOTAM: %d \n", len(identifiedNotams))
+	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
 	canceledNotams := client.IdentifyCanceledNotams(&identifiedNotams)
+	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
 	client.SetCanceledNotamList(canceledNotams)
-
 }
 
 func structToMap(i interface{}) (values url.Values) {
@@ -227,13 +248,12 @@ func (jpd *JpData) mergeAllLocationsCodes() {
 
 func (jpd *JpData) IsAirportCode(code string) bool {
 	for _, apt := range jpd.codeList.Airports {
-			if (apt.Icao == code) {
-				return true
-			}
+		if apt.Icao == code {
+			return true
+		}
 	}
 	return false
 }
-
 
 /**
  * initClient inits an http client to connect to the website  by sending the
@@ -257,7 +277,7 @@ func (jpd *JpData) initClient() http.Client {
 	//connect to the website
 	resp, err := client.PostForm(jpd.WebConfig.LoginPage, v)
 	if err != nil {
-		log.Println("If error due to certificate problem, install ca-certificates")
+		log.Printf("%s \n If error due to certificate problem, install ca-certificates", v)
 		log.Fatal(err)
 	}
 
