@@ -82,7 +82,7 @@ func (jpd *JpData) Process() {
 	//activeNotams := client.RetrieveActiveNotams()
 	var identifiedNotams []notam.NotamReference
 	for _, apt := range jpd.CodeList.Airports {
-		fmt.Printf("Retrieve NOTAM for %s \n", apt.Icao)
+		fmt.Printf("Retrieving NOTAM for %s \n", apt.Icao)
 		notamSearch.location = apt.Icao
 		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
 		fmt.Printf("\t Retrieve %d \n", len(notamReferences))
@@ -107,7 +107,6 @@ func (jpd *JpData) Process() {
 					fmt.Println(err1)
 				}
 			}
-
 		}
 	}
 
