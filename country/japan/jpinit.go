@@ -21,7 +21,8 @@ import (
 
 var JapanAis JpData
 
-type JpLoginFormData struct {
+// JpLoginFormData contains relevant data to connect to the Japan AIS webform
+type jpLoginFormData struct {
 	FormName   string `json:"formName"`
 	PasswordIn string `json:"password"`
 	UserIDIn   string `json:"userID"`
@@ -29,35 +30,44 @@ type JpLoginFormData struct {
 	UserID     string `json:"-"`
 }
 
+// JpData contains all the information required to connect and retrieve NOTAM from AIS services
 type JpData struct {
 	WebConfig
 	CodeListPath     string          `json:"codeListPath"`
-	CodeList         JpCodeFile      //map[string]interface{}
-	LoginData        JpLoginFormData `json:"loginData"`
+	codeList         jpCodeFile      //map[string]interface{}
+	LoginData        jpLoginFormData `json:"loginData"`
 	RequiredLocation []string        `json:"requiredLocation"`
 }
 
-type JpCodeFile struct {
+// jpCodeFile is the template to retrieve the airports data from the definition files
+type jpCodeFile struct {
 	IsActive      bool         `json:"IsActive"`
 	EffectiveDate string       `json:"EffectiveDate"`
 	CountryCode   string       `json:"CountryCode"`
-	Airports      []JpAirports `json:"Airports"`
+	Airports      []jpAirports `json:"Airports"`
 }
 
-type JpAirports struct {
+// jpAirports is the template to extract airports information from the definition files
+type jpAirports struct {
 	Icao  string `json:"Icao"`
 	Title string `json:"Title"`
 }
 
 
-
+// Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
+// It recovers the relevant information from a json file, set in ./country/japan/def.json.
+// Then, it initiates the http and mongodb interfaces.
+// Once achieved, it interrogates the web form by providing the location ICAO code to
+// the webform to identify the reference list of the relevant NOTAM.
 func (jpd *JpData) Process() {
 
-	jpd.LoadJsonFile("./country/japan/def.json")
-	httpClient := jpd.InitClient()
+	//retrieve the configuration data from the json file
+	jpd.loadJsonFile("./country/japan/def.json")
+	//Init a the http client thanks tp the configuration data
+	httpClient := jpd.initClient()
 	fmt.Println("Connected to AIS Japan")
 
-	//define a default NOTAM
+	//define a default search to fullfill the form
 	//Use 24h duration, retrieve the advisory and warning notams
 	notamSearch := JpNotamSearchForm{
 		location:   "RJNA",
@@ -72,15 +82,21 @@ func (jpd *JpData) Process() {
 	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	//defer cancel()
 
+	//Initiate a new mongo db interface
 	client := database.NewMongoDb()
 	//activeNotams := client.RetrieveActiveNotams()
+
 	var identifiedNotams []notam.NotamReference
-	for _, apt := range jpd.CodeList.Airports {
+
+	//Identify the NOTAM associated to an ICAO code (usually associated to an airport)
+	for _, apt := range jpd.codeList.Airports {
 		fmt.Printf("Retrieving NOTAM for %s \n", apt.Icao)
 		notamSearch.location = apt.Icao
+		//retrieve all the NOTAM references associated to the ICAO code
 		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
-		fmt.Printf("\t Retrieve %d \n", len(notamReferences))
+		fmt.Printf("\t %d NOTAM reference(s) identified \n", len(notamReferences))
 
+		//thanks the NOTAM reference, we gather the NOTAM information from the NotamDeatilPage
 		for _, notamRef := range notamReferences {
 			notam, err := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
 			//fmt.Println(notam)
@@ -90,7 +106,7 @@ func (jpd *JpData) Process() {
 					identifiedNotams = append(identifiedNotams, notam.NotamReference)
 				}
 			} else {
-				httpClient = jpd.InitClient()
+				httpClient = jpd.initClient()
 				notam, err1 := notamRef.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
 				if err1 != nil {
 					if client.IsNewNotam(&notam.NotamReference) {
@@ -130,7 +146,7 @@ If the environment variable does not exist or is empty, it generates a panic.
 To define an empty password, just set Password = ""  in the Json file.
 The same beahavior is extended to the User ID.
 */
-func (jpd *JpData) LoadJsonFile(path string) {
+func (jpd *JpData) loadJsonFile(path string) {
 	// Open our jsonFile
 	jsonFile, err := os.Open(path)
 	// if we os.Open returns an error then handle it
@@ -193,24 +209,24 @@ func (jpd *JpData) loadCodeList(path string) {
 	}
 
 	// Unmarshal or Decode the JSON to the interface.
-	json.Unmarshal([]byte(jsonData), &jpd.CodeList)
+	json.Unmarshal([]byte(jsonData), &jpd.codeList)
 	jpd.mergeAllLocationsCodes()
 
-	fmt.Println(jpd.CodeList)
+	fmt.Println(jpd.codeList)
 
 }
 
 func (jpd *JpData) mergeAllLocationsCodes() {
 	for _, code := range jpd.RequiredLocation {
 		if !jpd.IsAirportCode(code) {
-			apt := JpAirports{code, ""}
-			jpd.CodeList.Airports = append(jpd.CodeList.Airports, apt)
+			apt := jpAirports{code, ""}
+			jpd.codeList.Airports = append(jpd.codeList.Airports, apt)
 		}
 	}
 }
 
 func (jpd *JpData) IsAirportCode(code string) bool {
-	for _, apt := range jpd.CodeList.Airports {
+	for _, apt := range jpd.codeList.Airports {
 			if (apt.Icao == code) {
 				return true
 			}
@@ -223,7 +239,7 @@ func (jpd *JpData) IsAirportCode(code string) bool {
  * initClient inits an http client to connect to the website  by sending the
  * data to the formular.
  */
-func (jpd *JpData) InitClient() http.Client {
+func (jpd *JpData) initClient() http.Client {
 
 	frmData := jpd.LoginData
 	//Create a cookie Jar to manage the login cookies
