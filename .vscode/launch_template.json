@@ -1,0 +1,20 @@
+{
+// this is a template for the launch.json file for Visual Studio Code
+// It contains the relevant information but does not contain the passwords
+// and id
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "env": {
+                "JAPAN_AIP_PWD": "",
+                "JAPAN_AIP_USERID": ""
+            },
+            "args": []
+        }
+    ]
+}

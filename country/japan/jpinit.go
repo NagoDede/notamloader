@@ -49,13 +49,7 @@ type JpAirports struct {
 	Title string `json:"Title"`
 }
 
-type WebConfig struct {
-	CountryDir      string `json:"country"`
-	LoginPage       string `json:"loginPage"`
-	NotamFirstPage  string `json:"notamFirstPage"`
-	NotamDetailPage string `json:"notamDetailPage"`
-	NotamNextPage   string `json:"notamNextPage"`
-}
+
 
 func (jpd *JpData) Process() {
 
