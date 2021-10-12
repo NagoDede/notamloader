@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
+	"strconv"
 	"github.com/NagoDede/notamloader/notam"
 	"github.com/PuerkitoBio/goquery"
 )
@@ -26,17 +26,25 @@ type JpNotamDispForm struct {
 	dispFromTime string
 }
 
+func (ndf *JpNotamDispForm) Number() string {
+	number, _:= strconv.Atoi(ndf.notam_no)
+	year, _:= strconv.Atoi(ndf.notam_year)
+	return fmt.Sprintf("%04d/%02d",number, year )
+}
+
 func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string) (*notam.Notam, error) {
 
 	urlValues := structToMap(ndf)
-	resp, _ := httpClient.PostForm(url, urlValues)
+	resp, err := httpClient.PostForm(url, urlValues)
 
 	if resp != nil {
 		notam := notamText(resp.Body)
-		resp.Body.Close()
+		defer resp.Body.Close()
 		return notam, nil
 	} else {
-		fmt.Println("Error in Fill Information")
+		fmt.Println("Error in FillInformation - Cannot retrieve all the data")
+		fmt.Println(ndf)
+		fmt.Println(err)
 		return nil, errors.New("Nil answer")
 	}
 

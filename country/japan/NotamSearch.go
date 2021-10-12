@@ -42,6 +42,7 @@ func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient http.Client, webpag
 		log.Println("If error due to certificate problem, install ca-certificates")
 		log.Fatal(err)
 	}
+	defer resp.Body.Close()
 	return listNotams(resp.Body, nextWebPage)
 }
 
@@ -66,8 +67,6 @@ func subListNotams(body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage 
 			notamRefs = append(notamRefs, *extractFormData(href))
 		})
 
-	fmt.Println("---")
-
 	if doc.Find(`a[onclick*="javascript:postLink"]`).Length() > 0 {
 		*page = *page + 1
 		fmt.Printf("Page %d \n", *page)
@@ -77,9 +76,10 @@ func subListNotams(body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage 
 		resp, err := httpClientRef.PostForm(nextWebPage, urlAnchor)
 
 		if err != nil {
-			log.Println("If error due to certificate problem, install ca-certificates")
-			log.Fatal(err)
+			log.Printf("Error to recover next page: %d", *page)
+			log.Println(err)
 		}
+		defer resp.Body.Close()
 		return subListNotams(resp.Body, notamRefs[:], nextWebPage, page)
 	} else {
 		return notamRefs

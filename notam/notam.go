@@ -14,9 +14,14 @@ type Notam struct {
 	Status     string
 }
 
+type NotamStatus struct {
+	NotamReference
+	Status string `json:"status"`
+}
+
 type NotamReference struct {
 	Number       string `json:"number"`
-	Icaolocation string `json:"icalocation"`
+	Icaolocation string `json:"icaolocation"`
 }
 
 type NotamCode struct {

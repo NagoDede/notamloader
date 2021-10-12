@@ -7,12 +7,14 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"reflect"
 	"strings"
+	_ "sync"
 	"time"
 
 	"github.com/NagoDede/notamloader/database"
@@ -84,62 +86,69 @@ func (jpd *JpData) Process() {
 
 	//Initiate a new mongo db interface
 	client := database.NewMongoDb()
-	//activeNotams := client.RetrieveActiveNotams()
 
 	var identifiedNotams []notam.NotamReference
 
 	rand.Seed(time.Now().UnixNano())
 
 	//Identify the NOTAM associated to an ICAO code (usually associated to an airport)
-	for _, apt := range jpd.codeList.Airports {
-		fmt.Printf("Retrieving NOTAM for %s \n", apt.Icao)
+	for i, apt := range jpd.codeList.Airports {
+		fmt.Printf("Retrieving NOTAM for %s %d/%d \n", apt.Icao, i, len(jpd.codeList.Airports))
 		notamSearch.location = apt.Icao
 		//retrieve all the NOTAM references associated to the ICAO code
-		//func() {
+
 		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
 		fmt.Printf("\t %d NOTAM reference(s) identified \n", len(notamReferences))
 
 		//thanks the NOTAM reference, we gather the NOTAM information from the NotamDeatilPage
 		for _, notamRef := range notamReferences {
-			//extract the data from the webpage
-			go func(ref JpNotamDispForm) {
-				fmt.Printf("Ask data for %s - %s \n", ref.location, ref.notam_no)
-				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
-				notam, err := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-				if len(notam.Text) <= 20 {
-					fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text)
-				} else {
-					fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text[0:20])
-				}
+			//Record the refrence to identify the canceled
+			retrievedNotam := &notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location}
+			identifiedNotams = append(identifiedNotams, *retrievedNotam)
 
-				//no error, log theNOTAM in the Databse if it is a new one
-				if err == nil {
-					if client.IsNewNotam(&notam.NotamReference) {
-						client.AddNotam(notam)
-						identifiedNotams = append(identifiedNotams, notam.NotamReference)
-						fmt.Printf("!!!! --> Identified New Notams: %d", len(identifiedNotams))
+			//extract the data from the webpage
+			if !client.IsOldNotam(notamRef.location, notamRef.Number()) {
+				func(ref JpNotamDispForm) {
+					fmt.Printf("(New) %s - %s \n", ref.location, ref.Number())
+					//time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+					notam, err := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
+					if len(notam.Text) <= 20 {
+						fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text)
 					} else {
-						fmt.Printf("Not new - %s - %s \n", notam.Icaolocation, notam.Number)
+						fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text[0:20])
 					}
-				} else {
-					//there is an error, reset the client and start again
-					fmt.Printf("\t Error to recover NOTAM %s - %s \n", ref.location, ref.notam_no)
-					httpClient = jpd.initClient()
-					notam, err1 := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-					if err1 != nil {
-						if client.IsNewNotam(&notam.NotamReference) {
+
+					//no error, log the NOTAM in the Databse if it is a new one
+					if err == nil {
+						if !client.IsOldNotam(notam.NotamReference.Icaolocation, notam.NotamReference.Number) {
 							client.AddNotam(notam)
-							identifiedNotams = append(identifiedNotams, notam.NotamReference)
+							//identifiedNotams = append(identifiedNotams, notam.NotamReference)
+							fmt.Printf("--> Identified New Notams  %s - %s - Total Count: %d \n", notam.Icaolocation, notam.Number, len(identifiedNotams))
+						} else {
+							fmt.Printf("Not new - %s - %s \n", notam.Icaolocation, notam.Number)
 						}
 					} else {
-						fmt.Println(err1)
+						//there is an error, reset the client and start again
+						fmt.Printf("\t Error to recover NOTAM %s - %s \n", ref.location, ref.notam_no)
+						httpClient = jpd.initClient()
+						notam, err1 := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
+						if err1 != nil {
+							if !client.IsOldNotam(notam.NotamReference.Icaolocation, notam.NotamReference.Number) {
+								client.AddNotam(notam)
+								//identifiedNotams = append(identifiedNotams, notam.NotamReference)
+							}
+						} else {
+							fmt.Println(err1)
+						}
 					}
-				}
-			}(notamRef)
+				}(notamRef)
+			} else {
+				fmt.Printf("(Old)  %s - %s \n", notamRef.location, notamRef.Number())
+				
+			}
 		}
-		//}()
 	}
-	fmt.Printf("New NOTAM: %d \n", len(identifiedNotams))
+	fmt.Printf("Current NOTAMs: %d \n", len(identifiedNotams))
 	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
 	canceledNotams := client.IdentifyCanceledNotams(&identifiedNotams)
 	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
@@ -268,7 +277,20 @@ func (jpd *JpData) initClient() http.Client {
 		log.Fatal(err)
 	}
 
-	var client = http.Client{Jar: jar}
+	var client = http.Client{Jar: jar,
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   60 * time.Second,
+				KeepAlive: 60 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   60 * time.Second,
+			ResponseHeaderTimeout: 60 * time.Second,
+			ExpectContinueTimeout: 3 * time.Second,
+			MaxIdleConns : 100,
+			MaxConnsPerHost : 100,
+			MaxIdleConnsPerHost : 100,
+		},
+	}
 	//login to the page
 	v := url.Values{"formName": {frmData.FormName},
 		"password": {frmData.Password},
