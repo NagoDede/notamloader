@@ -14,7 +14,7 @@ import (
 
 type Mongodb struct {
 	client *mongo.Client
-	activeNotams *[]notam.NotamReference
+	activeNotams *[]notam.NotamStatus
 }
 
 var client *mongo.Client
@@ -23,6 +23,7 @@ var notamCollection *mongo.Collection
 var ctx = context.TODO()
 
 func NewMongoDb() *Mongodb{
+	fmt.Println("Connect to NOTAM database")
 	ctx = context.TODO()
 	clientmg := getClient()
 	mgdb := &Mongodb{client: clientmg,}
@@ -45,6 +46,7 @@ func getClient() *mongo.Client {
 
 	once.Do(onceBody)
 	notamCollection = client.Database("NOTAMS").Collection("notams")
+	
     return client
 }
 
@@ -56,53 +58,55 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 	}
 }
 
-func (mgdb *Mongodb) GetActiveNotamsInDb() *[]notam.NotamReference {
+func (mgdb *Mongodb) GetActiveNotamsInDb() *[]notam.NotamStatus {
 	mgdb.activeNotams = mgdb.retrieveActiveNotams()
+	fmt.Printf("\t Retrieve %d active NOTAM in the database \n", len(*mgdb.activeNotams))
 	return mgdb.activeNotams
 }
 
 //
-func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamReference {
+func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
 	filter := bson.D{{"status", "Operable"}}
 	projection := bson.D{
 		{"notamreference.number", 1},
 		{"notamreference.icaolocation", 1},
 		{"status", 1},
 	}
-	
 
 	myCursor, err := notamCollection.Find(ctx, filter, options.Find().SetProjection(projection))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var notams []notam.NotamReference
-	myCursor.All(ctx, &notams)
+	var notams []notam.NotamStatus
+	if err = myCursor.All(context.Background(), &notams); err != nil {
+		log.Fatal(err)
+	}
 	return &notams
 }
 
-func (mgdb Mongodb) IsNewNotam(ntm *notam.NotamReference) bool {
+func (mgdb Mongodb) IsOldNotam( notam_location string, notam_number string) bool {
 
 	if *mgdb.activeNotams == nil {
-		return true
+		return false
 	}
 
 	for _, ntmref := range *mgdb.activeNotams {
-		if ntmref.Icaolocation == ntm.Icaolocation && 
-			ntmref.Number == ntm.Number {
+		if ntmref.Icaolocation == notam_location && 
+			ntmref.Number == notam_number {
 			return true
 		}
 	}
 	return false
 }
 
-func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams *[]notam.NotamReference) *[]notam.NotamReference {
-	var canceledNotams []notam.NotamReference
+func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams *[]notam.NotamReference) *[]notam.NotamStatus {
+	var canceledNotams []notam.NotamStatus
 
 	From(*mgdb.activeNotams).Where(func(c interface{}) bool {
 		for _, ntm := range *currentNotams {
-			if ntm.Icaolocation == c.(notam.NotamReference).Icaolocation && 
-				ntm.Number == c.(notam.NotamReference).Number {
+			if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation && 
+				ntm.Number == c.(notam.NotamStatus).Number {
 				return false
 			}
 		}
@@ -112,12 +116,12 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams *[]notam.NotamReference
 		return &canceledNotams
 }
 
-func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamReference) {
+func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamStatus) {
 	if len(*canceledNotams) >0 {
 		for _, canceled := range *canceledNotams {
 			filter := bson.M{"status": "Operable", 
-			"number": canceled.Number, 
-			"icaolocation": canceled.Icaolocation}
+			"notamreference.number": canceled.Number, 
+			"notamreference.icaolocation": canceled.Icaolocation}
 
 			setCancel := bson.D{
 				{"$set", bson.D{{"status","Canceled"}}},
