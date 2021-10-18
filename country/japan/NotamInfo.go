@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"github.com/NagoDede/notamloader/notam"
 	"github.com/PuerkitoBio/goquery"
+
 )
 
 type JpNotamDispForm struct {
@@ -113,8 +114,33 @@ func fillNotamCode(index int, a *goquery.Selection, notam *notam.Notam) *notam.N
 	notam.NotamCode.LowerLimit = splitted[5]
 	notam.NotamCode.UpperLimit = splitted[6]
 	notam.NotamCode.Coordinates = splitted[7]
+	fillGeoData(notam)
+	return notam
+}
+
+func fillGeoData( notam *notam.Notam) *notam.Notam {
+	deglat, _ := strconv.Atoi(notam.NotamCode.Coordinates[0:2])
+	minlat, _  := strconv.Atoi(notam.NotamCode.Coordinates[2:4])
+	hemisphere := notam.NotamCode.Coordinates[4]
+
+	notam.GeoData.Latitude = float64(deglat) + float64(minlat) / 60.0
+	if hemisphere == 'S' {
+		notam.GeoData.Latitude = -notam.GeoData.Latitude 
+	}
+
+	deglong, _ := strconv.Atoi(notam.NotamCode.Coordinates[5:8])
+	minlong, _  := strconv.Atoi(notam.NotamCode.Coordinates[8:10])
+	side := notam.NotamCode.Coordinates[10]
+
+	notam.GeoData.Longitude = float64(deglong) + float64(minlong) / 60.0
+	if side == 'W' {
+		notam.GeoData.Longitude = -notam.GeoData.Longitude
+	}
+
+	notam.GeoData.Radius,_ = strconv.Atoi(notam.NotamCode.Coordinates[11:14])
 
 	return notam
+	
 }
 
 func fillNumber(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {

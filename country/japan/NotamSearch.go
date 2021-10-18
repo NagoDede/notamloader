@@ -51,7 +51,6 @@ func listNotams(body io.ReadCloser, nextWebPage string) []JpNotamDispForm {
 	var page int
 	page = 1
 	return subListNotams(body, notamrefs[:], nextWebPage, &page)
-
 }
 
 func subListNotams(body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
@@ -74,12 +73,11 @@ func subListNotams(body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage 
 		anchor.anchor = `next`
 		urlAnchor := structToMap(&anchor)
 		resp, err := httpClientRef.PostForm(nextWebPage, urlAnchor)
-
+		defer resp.Body.Close()
 		if err != nil {
 			log.Printf("Error to recover next page: %d", *page)
 			log.Println(err)
 		}
-		defer resp.Body.Close()
 		return subListNotams(resp.Body, notamRefs[:], nextWebPage, page)
 	} else {
 		return notamRefs

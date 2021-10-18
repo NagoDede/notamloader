@@ -10,6 +10,9 @@ import (
 	"github.com/NagoDede/notamloader/notam"
 	"go.mongodb.org/mongo-driver/bson"
 	. "github.com/ahmetb/go-linq"
+	_ "compress/gzip"
+	"os"
+	"encoding/json"
 )
 
 type Mongodb struct {
@@ -51,7 +54,6 @@ func getClient() *mongo.Client {
 }
 
 func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
-	fmt.Println(notam)
 	_, err := notamCollection.InsertOne(ctx, notam)
 	if err != nil {
 		log.Fatal(err)
@@ -63,6 +65,38 @@ func (mgdb *Mongodb) GetActiveNotamsInDb() *[]notam.NotamStatus {
 	fmt.Printf("\t Retrieve %d active NOTAM in the database \n", len(*mgdb.activeNotams))
 	return mgdb.activeNotams
 }
+
+// Retrieve the Operable Notams in the database
+func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
+	filter := bson.D{{"status", "Operable"}}
+	myCursor, err := notamCollection.Find(ctx, filter)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var notams []notam.Notam
+	if err = myCursor.All(context.Background(), &notams); err != nil {
+		log.Fatal(err)
+	}
+	return &notams
+}
+
+// Write all the Active Notams in the indicated file.
+// The file is Gzipped.
+func (mgdb *Mongodb) WriteActiveNotamToFile( path string) {
+	var notamToPrint = mgdb.GetActiveNotamsData()
+	file, err := os.OpenFile(path , os.O_CREATE, os.ModePerm) 
+	if (err != nil) {
+		log.Fatal(err)
+	}
+
+	//writer := gzip.NewWriter(file)
+	//defer writer.Close()  
+	encoder := json.NewEncoder(file)
+	defer file.Close()
+	encoder.Encode(notamToPrint)
+}
+
 
 //
 func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {

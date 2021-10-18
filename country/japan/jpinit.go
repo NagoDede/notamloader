@@ -14,6 +14,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	_ "sync"
 	"time"
 
@@ -69,6 +70,9 @@ func (jpd *JpData) Process() {
 	httpClient := jpd.initClient()
 	fmt.Println("Connected to AIS Japan")
 
+	//Will contain all the retrieved Notams
+	var allRetrievedNotams []notam.NotamReference
+
 	//define a default search to fullfill the form
 	//Use 24h duration, retrieve the advisory and warning notams
 	notamSearch := JpNotamSearchForm{
@@ -81,78 +85,77 @@ func (jpd *JpData) Process() {
 		firstFlg:   "true",
 	}
 
-	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//defer cancel()
-
 	//Initiate a new mongo db interface
 	client := database.NewMongoDb()
-
-	var identifiedNotams []notam.NotamReference
-
 	rand.Seed(time.Now().UnixNano())
 
 	//Identify the NOTAM associated to an ICAO code (usually associated to an airport)
 	for i, apt := range jpd.codeList.Airports {
 		fmt.Printf("Retrieving NOTAM for %s %d/%d \n", apt.Icao, i, len(jpd.codeList.Airports))
-		notamSearch.location = apt.Icao
-		//retrieve all the NOTAM references associated to the ICAO code
 
+		//retrieve all the NOTAM references associated to the ICAO code
+		notamSearch.location = apt.Icao
 		notamReferences := notamSearch.ListNotamReferences(httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
 		fmt.Printf("\t %d NOTAM reference(s) identified \n", len(notamReferences))
+
+		wg := new(sync.WaitGroup)
 
 		//thanks the NOTAM reference, we gather the NOTAM information from the NotamDeatilPage
 		for _, notamRef := range notamReferences {
 			//Record the refrence to identify the canceled
-			retrievedNotam := &notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location}
-			identifiedNotams = append(identifiedNotams, *retrievedNotam)
+			retrievedNotam := notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location}
+			allRetrievedNotams = append(allRetrievedNotams, retrievedNotam)
+			fmt.Printf("\t Total Retrieved NOTAM %d \n", len(allRetrievedNotams))
 
 			//extract the data from the webpage
 			if !client.IsOldNotam(notamRef.location, notamRef.Number()) {
-				func(ref JpNotamDispForm) {
+				go func(wg *sync.WaitGroup, ref JpNotamDispForm) {
+					wg.Add(1)
+					defer wg.Done()
 					fmt.Printf("(New) %s - %s \n", ref.location, ref.Number())
 					//time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
 					notam, err := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-					if len(notam.Text) <= 20 {
-						fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text)
-					} else {
-						fmt.Printf("Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text[0:20])
-					}
-
-					//no error, log the NOTAM in the Databse if it is a new one
+					//no error, log the NOTAM in the Database if it is a new one
 					if err == nil {
+						if len(notam.Text) <= 20 {
+							fmt.Printf("\t --> Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text)
+						} else {
+							fmt.Printf("\t --> Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text[0:20])
+						}
+
 						if !client.IsOldNotam(notam.NotamReference.Icaolocation, notam.NotamReference.Number) {
 							client.AddNotam(notam)
-							//identifiedNotams = append(identifiedNotams, notam.NotamReference)
-							fmt.Printf("--> Identified New Notams  %s - %s - Total Count: %d \n", notam.Icaolocation, notam.Number, len(identifiedNotams))
+							fmt.Printf("\t --> Added NOTAM to db  %s - %s \n", notam.Icaolocation, notam.Number)
 						} else {
-							fmt.Printf("Not new - %s - %s \n", notam.Icaolocation, notam.Number)
+							fmt.Printf("\t Not new - %s - %s \n", notam.Icaolocation, notam.Number)
 						}
 					} else {
 						//there is an error, reset the client and start again
 						fmt.Printf("\t Error to recover NOTAM %s - %s \n", ref.location, ref.notam_no)
 						httpClient = jpd.initClient()
 						notam, err1 := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage)
-						if err1 != nil {
+						if err1 == nil {
 							if !client.IsOldNotam(notam.NotamReference.Icaolocation, notam.NotamReference.Number) {
 								client.AddNotam(notam)
-								//identifiedNotams = append(identifiedNotams, notam.NotamReference)
 							}
 						} else {
 							fmt.Println(err1)
 						}
 					}
-				}(notamRef)
+
+				}(wg, notamRef)
 			} else {
 				fmt.Printf("(Old)  %s - %s \n", notamRef.location, notamRef.Number())
-				
 			}
 		}
+		wg.Wait()
 	}
-	fmt.Printf("Current NOTAMs: %d \n", len(identifiedNotams))
+	defer fmt.Printf("Current NOTAMs: %d \n", len(allRetrievedNotams))
 	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
-	canceledNotams := client.IdentifyCanceledNotams(&identifiedNotams)
+	canceledNotams := client.IdentifyCanceledNotams(&allRetrievedNotams)
 	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
-	client.SetCanceledNotamList(canceledNotams)
+	defer client.SetCanceledNotamList(canceledNotams)
+	defer client.WriteActiveNotamToFile("./web/notams/japan.json")
 }
 
 func structToMap(i interface{}) (values url.Values) {
@@ -285,10 +288,10 @@ func (jpd *JpData) initClient() http.Client {
 			}).Dial,
 			TLSHandshakeTimeout:   60 * time.Second,
 			ResponseHeaderTimeout: 60 * time.Second,
-			ExpectContinueTimeout: 3 * time.Second,
-			MaxIdleConns : 100,
-			MaxConnsPerHost : 100,
-			MaxIdleConnsPerHost : 100,
+			ExpectContinueTimeout: 20 * time.Second,
+			MaxIdleConns:          0,
+			MaxConnsPerHost:       0,
+			MaxIdleConnsPerHost:   200,
 		},
 	}
 	//login to the page
@@ -299,10 +302,11 @@ func (jpd *JpData) initClient() http.Client {
 	//connect to the website
 	resp, err := client.PostForm(jpd.WebConfig.LoginPage, v)
 	if err != nil {
-		log.Printf("%s \n If error due to certificate problem, install ca-certificates", v)
+		log.Printf("Connection Error \n If error due to certificate problem, install ca-certificates")
 		log.Fatal(err)
 	}
 
 	defer resp.Body.Close()
+	client.CloseIdleConnections()
 	return client
 }
