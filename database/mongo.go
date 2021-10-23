@@ -55,13 +55,13 @@ func getClient() *mongo.Client {
 }
 
 func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
-
 	//check before add that the doc does not exist in
 	_, err := notamCollection.InsertOne(ctx, notam)
 	if err != nil {
 		var merr mongo.WriteException
 		merr = err.(mongo.WriteException)
 		errCode := merr.WriteErrors[0].Code
+		//discard case where key is in database
 		if errCode != 11000 {
 			log.Fatal(err)
 		} else {
@@ -111,8 +111,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
 	filter := bson.D{{"status", "Operable"}}
 	projection := bson.D{
-		{"notamreference.number", 1},
-		{"notamreference.icaolocation", 1},
+		{"notamreference", 1},
 		{"status", 1},
 	}
 
@@ -128,15 +127,18 @@ func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
 	return &notams
 }
 
-func (mgdb Mongodb) IsOldNotam(notam_location string, notam_number string) bool {
-
+func (mgdb Mongodb) IsOldNotam(key string) bool {
+//	IsOldNotam(notam_location string, notam_number string) 
 	if *mgdb.activeNotams == nil {
 		return false
 	}
 
 	for _, ntmref := range *mgdb.activeNotams {
-		if ntmref.Icaolocation == notam_location &&
-			ntmref.Number == notam_number {
+		// if ntmref.Icaolocation == notam_location &&
+		// 	ntmref.Number == notam_number {
+		// 	return true
+		// }
+		if ntmref.GetKey() == key {
 			return true
 		}
 	}

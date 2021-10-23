@@ -27,6 +27,9 @@ type JpNotamDispForm struct {
 	dispFromTime string
 }
 
+func (ndf *JpNotamDispForm) GetKey() string {
+	return "JPN/" + ndf.location + "/" + ndf.Number()
+}
 func (ndf *JpNotamDispForm) Number() string {
 	number, _:= strconv.Atoi(ndf.notam_no)
 	year, _:= strconv.Atoi(ndf.notam_year)

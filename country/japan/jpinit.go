@@ -152,7 +152,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 		fmt.Printf("\t Total Retrieved NOTAM %d \n", len(allRetrievedNotams))
 
 		//extract the data from the webpage
-		if !mongoClient.IsOldNotam(notamRef.location, notamRef.Number()) {
+		if !mongoClient.IsOldNotam(notamRef.GetKey()) {
 			go func(wg *sync.WaitGroup, ref JpNotamDispForm) {
 				wg.Add(1)
 				defer wg.Done()
@@ -167,7 +167,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 						fmt.Printf("\t --> Get %s - %s (%s) \n %s \n", notam.Icaolocation, notam.Number, notam.Identifier, notam.Text[0:20])
 					}
 
-					if !mongoClient.IsOldNotam(notam.NotamReference.Icaolocation, notam.NotamReference.Number) {
+					if !mongoClient.IsOldNotam(notam.NotamReference.GetKey()) {
 						mongoClient.AddNotam(notam)
 						fmt.Printf("\t --> Added NOTAM to db  %s - %s \n", notam.Icaolocation, notam.Number)
 					} else {
@@ -179,7 +179,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 					httpClient = jpd.initClient()
 					notam, err1 := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
 					if err1 == nil {
-						if !mongoClient.IsOldNotam(notam.NotamReference.Icaolocation, notam.NotamReference.Number) {
+						if !mongoClient.IsOldNotam(notam.NotamReference.GetKey()) {
 							mongoClient.AddNotam(notam)
 						}
 					} else {
