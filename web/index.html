@@ -16,21 +16,31 @@
 	<script>
 		MB_ATTR = 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
 			'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>';
-		MB_URL = 'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=' + ACCESS_TOKEN;
 		OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 		OSM_ATTRIB = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-        import japanNotams from "./notams/japan.gz"
 
 	</script>
 </head>
 <body>
 
-    <div id="mapid" style="width: 600px; height: 400px;"></div>
+    <div id="mapid" style="width: 800px; height: 600px;"></div>
 
     <script>
+        function loadJSON(callback) {   
+            var xobj = new XMLHttpRequest();
+                xobj.overrideMimeType("application/json");
+            xobj.open('GET', 'https://raw.githubusercontent.com/NagoDede/notamloader/main/web/notams/japan.json', true); 
+            xobj.onreadystatechange = function () {
+                if (xobj.readyState == 4 && xobj.status == "200") {
+                    // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+                    callback(xobj.responseText);
+                }
+            };
+            xobj.send(null);  
+        }
 
-        var mymap = L.map('mapid').setView([51.505, -0.09], 13);
+        var mymap = L.map('mapid').setView([37.0, 136.0], 4);
     
         L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
             maxZoom: 18,
@@ -40,20 +50,20 @@
             zoomOffset: -1
         }).addTo(mymap);
     
-        L.marker([51.5, -0.09]).addTo(mymap)
-            .bindPopup("<b>Hello world!</b><br />I am a popup.").openPopup();
+        // L.marker([51.5, -0.09]).addTo(mymap)
+        //     .bindPopup("<b>Hello world!</b><br />I am a popup.").openPopup();
     
-        L.circle([51.508, -0.11], 500, {
-            color: 'red',
-            fillColor: '#f03',
-            fillOpacity: 0.5
-        }).addTo(mymap).bindPopup("I am a circle.");
+        // L.circle([51.508, -0.11], 500, {
+        //     color: 'red',
+        //     fillColor: '#f03',
+        //     fillOpacity: 0.5
+        // }).addTo(mymap).bindPopup("I am a circle.");
     
-        L.polygon([
-            [51.509, -0.08],
-            [51.503, -0.06],
-            [51.51, -0.047]
-        ]).addTo(mymap).bindPopup("I am a polygon.");
+        // L.polygon([
+        //     [51.509, -0.08],
+        //     [51.503, -0.06],
+        //     [51.51, -0.047]
+        // ]).addTo(mymap).bindPopup("I am a polygon.");
     
     
         var popup = L.popup();
@@ -65,8 +75,30 @@
                 .openOn(mymap);
         }
     
+        function init() {
+            loadJSON(function(response) {
+                var data = JSON.parse(response);
+
+                data.forEach(obj => {
+                    L.marker([obj.Latitude, obj.Longitude]).addTo(mymap)
+                        .bindPopup(obj.Text);
+                    if ((obj.Radius > 5.0) && (obj.Radius <50.0 )) {
+                    L.circle([obj.Latitude, obj.Longitude], obj.Radius*1852, {
+                        color: 'red',
+                        fillColor: '#f03',
+                        fillOpacity: 0.2
+                        }).addTo(mymap);
+                    }
+                   // Object.entries(obj).forEach(([key, value]) => {
+                    //console.log(`${key} ${value}`);
+                   // });
+                });
+            });
+        }
+
         mymap.on('click', onMapClick);
-    
+
+        init();
     </script>
     
     
