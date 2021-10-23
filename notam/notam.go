@@ -1,8 +1,8 @@
 package notam
 
 type Notam struct {
-	Id		string 		`bson:"_id" json:"id,omitempty"`
-	NotamReference 
+	Id string `bson:"_id" json:"id,omitempty"`
+	NotamReference
 	GeoData
 	Identifier string `json:"identifier"`
 	Replace    string `json:"replace"`
@@ -21,10 +21,12 @@ type NotamStatus struct {
 	Status string `json:"status"`
 }
 
+type KeyFunc func() string
+
 type NotamReference struct {
 	Number       string `json:"number"`
 	Icaolocation string `json:"icaolocation"`
-	CountryCode		string
+	CountryCode  string `json:"countrycode"`
 }
 
 func (nr *NotamReference) GetKey() string {
@@ -32,11 +34,10 @@ func (nr *NotamReference) GetKey() string {
 }
 
 type GeoData struct {
-	Latitude    float64 `json:"Latitude"`
-	Longitude    float64 `json:"Longitude"`
-	Radius    int `json:"Radius"`
+	Latitude  float64 `json:"Latitude"`
+	Longitude float64 `json:"Longitude"`
+	Radius    int     `json:"Radius"`
 }
-
 
 type NotamCode struct {
 	Fir         string `json:"fir"`
@@ -47,7 +48,6 @@ type NotamCode struct {
 	LowerLimit  string `json:"lowerlimit"`
 	UpperLimit  string `json:"upperlimit"`
 	Coordinates string `json:"coordinates"`
-
 }
 
 func NewNotam() *Notam {

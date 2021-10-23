@@ -169,10 +169,9 @@ func fillNumber(index int, a *goquery.Selection, notam *notam.Notam) *notam.Nota
 		notam.Number = strings.TrimSpace(splitted[0])
 		notam.Identifier = strings.TrimSpace(splitted[1])
 
-		if (notam.Identifier == "NOTAMR") || (notam.Identifier == "NOTAMR") {
+		if (notam.Identifier == "NOTAMR")  {
 			notam.Replace = strings.TrimSpace(splitted[2])
 		}
-
 		notam.Status = "Operable"
 	}
 	return notam
