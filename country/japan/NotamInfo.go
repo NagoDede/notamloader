@@ -28,7 +28,7 @@ type JpNotamDispForm struct {
 }
 
 func (ndf *JpNotamDispForm) GetKey() string {
-	return "JPN/" + ndf.location + "/" + ndf.Number()
+	return "JPN-" + ndf.location + "-" + ndf.Number()
 }
 func (ndf *JpNotamDispForm) Number() string {
 	number, _:= strconv.Atoi(ndf.notam_no)

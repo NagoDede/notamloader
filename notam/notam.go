@@ -30,7 +30,7 @@ type NotamReference struct {
 }
 
 func (nr *NotamReference) GetKey() string {
-	return nr.CountryCode + "/" + nr.Icaolocation + "/" + nr.Number
+	return nr.CountryCode + "-" + nr.Icaolocation + "-" + nr.Number
 }
 
 type GeoData struct {
