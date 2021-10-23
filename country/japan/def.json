@@ -1,5 +1,6 @@
 {
  "country": "Japan",
+ "countryCode": "JPN",
  "loginPage": "https://aisjapan.mlit.go.jp/LoginAction.do",
  "loginData": {
     "formName": "ais-web",
@@ -9,6 +10,8 @@
  "notamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
  "notamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
  "notamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",
+ "mapPage":"https://aisjapan.mlit.go.jp/MapEnrouteSearcherAction.do",
+ "mapAnswerPage":"https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
  "__notes__":"Contains all the airports ICAO codes",
  "codeListPath":"https://raw.githubusercontent.com/NagoDede/nagodede.github.io/master/aip/japan/documents/info.json",
  "__oldval__":"https://nagodede.github.io/aip/japan/documents/codes.json",

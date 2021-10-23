@@ -15,6 +15,8 @@ type WebConfig struct {
 	NotamFirstPage  string      `json:"notamFirstPage"`
 	NotamDetailPage string      `json:"notamDetailPage"`
 	NotamNextPage   string      `json:"notamNextPage"`
+	MapPage 		string		`json:"mapPage"`
+	MapAnswerPage 	string 		`json:"mapAnswerPage"`
 	httpClient      http.Client //share the httpClient
 }
 

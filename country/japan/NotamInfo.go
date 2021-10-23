@@ -33,13 +33,15 @@ func (ndf *JpNotamDispForm) Number() string {
 	return fmt.Sprintf("%04d/%02d",number, year )
 }
 
-func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string) (*notam.Notam, error) {
+func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string, countryCode string) (*notam.Notam, error) {
 
 	urlValues := structToMap(ndf)
 	resp, err := httpClient.PostForm(url, urlValues)
 
 	if resp != nil {
 		notam := notamText(resp.Body)
+		notam.CountryCode=countryCode
+		notam.Id = notam.GetKey() //.CountryCode +"/" + notam.Icaolocation + "/" +  notam.NotamReference.Number 
 		defer resp.Body.Close()
 		return notam, nil
 	} else {
@@ -57,12 +59,14 @@ func postNotamDetail(client http.Client, data url.Values, url string) (resp *htt
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Accept-Encoding", "gzip;q=1.0, deflate, br, identity;q=0")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9,fr;q=0.8")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("Cache-Control", "max-age=0")
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9") //req.AddCookie(client.Jar.Cookies())
+//	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9") //req.AddCookie(client.Jar.Cookies())
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9") //req.AddCookie(client.Jar.Cookies())
+
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	req.Header.Set("Sec-Fetch-Mode", "navigate")
 	req.Header.Set("Sec-Fetch-User", "?1")
@@ -83,7 +87,6 @@ func notamText(body io.ReadCloser) *notam.Notam {
 
 	doc.Find(`td[class="txt-notam"]`).Each(
 		func(index int, a *goquery.Selection) {
-			//fmt.Println(a.Text())
 			fillNumber(index, a, notam)
 			fillNotamCode(index, a, notam)
 			fillIcaoLocation(index, a, notam)
@@ -92,8 +95,6 @@ func notamText(body io.ReadCloser) *notam.Notam {
 			fillLowerLimit(index, a, notam)
 			fillUpperLimit(index, a, notam)
 		})
-
-	//fmt.Printf("%#v\n",notam)
 	return notam
 }
 

@@ -1,7 +1,8 @@
 package notam
 
 type Notam struct {
-	NotamReference
+	Id		string 		`bson:"_id" json:"id,omitempty"`
+	NotamReference 
 	GeoData
 	Identifier string `json:"identifier"`
 	Replace    string `json:"replace"`
@@ -24,6 +25,10 @@ type NotamReference struct {
 	Number       string `json:"number"`
 	Icaolocation string `json:"icaolocation"`
 	CountryCode		string
+}
+
+func (nr *NotamReference) GetKey() string {
+	return nr.CountryCode + "/" + nr.Icaolocation + "/" + nr.Number
 }
 
 type GeoData struct {

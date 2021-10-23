@@ -1,22 +1,23 @@
 package database
 
 import (
-	"log"
+	_ "compress/gzip"
+	"context"
+	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"sync"
+
+	"github.com/NagoDede/notamloader/notam"
+	. "github.com/ahmetb/go-linq"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"context"
-	"github.com/NagoDede/notamloader/notam"
-	"go.mongodb.org/mongo-driver/bson"
-	. "github.com/ahmetb/go-linq"
-	_ "compress/gzip"
-	"os"
-	"encoding/json"
 )
 
 type Mongodb struct {
-	client *mongo.Client
+	client       *mongo.Client
 	activeNotams *[]notam.NotamStatus
 }
 
@@ -25,11 +26,11 @@ var notamCollection *mongo.Collection
 
 var ctx = context.TODO()
 
-func NewMongoDb() *Mongodb{
+func NewMongoDb() *Mongodb {
 	fmt.Println("Connect to NOTAM database")
 	ctx = context.TODO()
 	clientmg := getClient()
-	mgdb := &Mongodb{client: clientmg,}
+	mgdb := &Mongodb{client: clientmg}
 	mgdb.GetActiveNotamsInDb()
 	return mgdb
 }
@@ -49,14 +50,23 @@ func getClient() *mongo.Client {
 
 	once.Do(onceBody)
 	notamCollection = client.Database("NOTAMS").Collection("notams")
-	
-    return client
+
+	return client
 }
 
 func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
+
+	//check before add that the doc does not exist in
 	_, err := notamCollection.InsertOne(ctx, notam)
 	if err != nil {
-		log.Fatal(err)
+		var merr mongo.WriteException
+		merr = err.(mongo.WriteException)
+		errCode := merr.WriteErrors[0].Code
+		if errCode != 11000 {
+			log.Fatal(err)
+		} else {
+			fmt.Printf("NOTAM: %s in database \n", notam.Id)
+		}
 	}
 }
 
@@ -83,20 +93,19 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 
 // Write all the Active Notams in the indicated file.
 // The file is Gzipped.
-func (mgdb *Mongodb) WriteActiveNotamToFile( path string) {
+func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	var notamToPrint = mgdb.GetActiveNotamsData()
-	file, err := os.OpenFile(path , os.O_CREATE, os.ModePerm) 
-	if (err != nil) {
+	file, err := os.OpenFile(path, os.O_CREATE, os.ModePerm)
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	//writer := gzip.NewWriter(file)
-	//defer writer.Close()  
+	//defer writer.Close()
 	encoder := json.NewEncoder(file)
 	defer file.Close()
 	encoder.Encode(notamToPrint)
 }
-
 
 //
 func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
@@ -119,14 +128,14 @@ func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
 	return &notams
 }
 
-func (mgdb Mongodb) IsOldNotam( notam_location string, notam_number string) bool {
+func (mgdb Mongodb) IsOldNotam(notam_location string, notam_number string) bool {
 
 	if *mgdb.activeNotams == nil {
 		return false
 	}
 
 	for _, ntmref := range *mgdb.activeNotams {
-		if ntmref.Icaolocation == notam_location && 
+		if ntmref.Icaolocation == notam_location &&
 			ntmref.Number == notam_number {
 			return true
 		}
@@ -134,12 +143,12 @@ func (mgdb Mongodb) IsOldNotam( notam_location string, notam_number string) bool
 	return false
 }
 
-func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams *[]notam.NotamReference) *[]notam.NotamStatus {
+func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamReference) *[]notam.NotamStatus {
 	var canceledNotams []notam.NotamStatus
 
 	From(*mgdb.activeNotams).Where(func(c interface{}) bool {
-		for _, ntm := range *currentNotams {
-			if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation && 
+		for _, ntm := range currentNotams {
+			if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
 				ntm.Number == c.(notam.NotamStatus).Number {
 				return false
 			}
@@ -147,21 +156,21 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams *[]notam.NotamReference
 		return true
 	}).ToSlice(&canceledNotams)
 
-		return &canceledNotams
+	return &canceledNotams
 }
 
 func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamStatus) {
-	if len(*canceledNotams) >0 {
+	if len(*canceledNotams) > 0 {
 		for _, canceled := range *canceledNotams {
-			filter := bson.M{"status": "Operable", 
-			"notamreference.number": canceled.Number, 
-			"notamreference.icaolocation": canceled.Icaolocation}
+			filter := bson.M{"status": "Operable",
+				"notamreference.number":       canceled.Number,
+				"notamreference.icaolocation": canceled.Icaolocation}
 
 			setCancel := bson.D{
-				{"$set", bson.D{{"status","Canceled"}}},
+				{"$set", bson.D{{"status", "Canceled"}}},
 			}
 
-			notamCollection.UpdateMany(ctx, filter,setCancel)
+			notamCollection.UpdateMany(ctx, filter, setCancel)
 		}
 	}
 }
