@@ -17,7 +17,9 @@ type WebConfig struct {
 	NotamNextPage   string      `json:"notamNextPage"`
 	MapPage 		string		`json:"mapPage"`
 	MapAnswerPage 	string 		`json:"mapAnswerPage"`
+	LogOutPage 		string 		`json:"logoutpage"`
 	httpClient      http.Client //share the httpClient
+	IsConnected		bool
 }
 
 //Values used to generate a Next webpage request

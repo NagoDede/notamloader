@@ -7,6 +7,7 @@
     "password": "Env:JAPAN_AIP_PWD",
     "userID": "Env:JAPAN_AIP_USERID"
    },
+ "logoutpage": "https://aisjapan.mlit.go.jp/LogoutAction.do",
  "notamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
  "notamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
  "notamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",

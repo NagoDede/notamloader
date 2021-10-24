@@ -75,7 +75,12 @@ func postNotamDetail(client http.Client, data url.Values, url string) (resp *htt
 	req.Header.Set("Sec-Fetch-User", "?1")
 	req.Header.Set("Sec-Fetch-Dest", "document")
 	req.Header.Set("Upgrade-Insecuree-Requests", "1")
+	req.Header.Set("Sec-GPC", "1")
 	req.Header.Set("Referer", "https://aisjapan.mlit.go.jp/KeySearcherAction.do")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.54 Safari/537.36")
+	req.Header.Set("Host","aisjapan.mlit.go.jp")
+	req.Header.Set("Origin", "https://aisjapan.mlit.go.jp")
+	req.Header.Set("Referer", "https://aisjapan.mlit.go.jp/Search.do")
 	return client.Do(req)
 }
 

@@ -19,6 +19,7 @@ import (
 type Mongodb struct {
 	client       *mongo.Client
 	activeNotams *[]notam.NotamStatus
+	CountryCode		string
 }
 
 var client *mongo.Client
@@ -26,12 +27,12 @@ var notamCollection *mongo.Collection
 
 var ctx = context.TODO()
 
-func NewMongoDb() *Mongodb {
+func NewMongoDb(countrycode string) *Mongodb {
 	fmt.Println("Connect to NOTAM database")
 	ctx = context.TODO()
 	clientmg := getClient()
-	mgdb := &Mongodb{client: clientmg}
-	mgdb.GetActiveNotamsInDb()
+	mgdb := &Mongodb{client: clientmg, CountryCode: countrycode}
+	mgdb.UpdateActiveNotamsFromDb()
 	return mgdb
 }
 
@@ -70,7 +71,7 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 	}
 }
 
-func (mgdb *Mongodb) GetActiveNotamsInDb() *[]notam.NotamStatus {
+func (mgdb *Mongodb) UpdateActiveNotamsFromDb() *[]notam.NotamStatus {
 	mgdb.activeNotams = mgdb.retrieveActiveNotams()
 	fmt.Printf("\t Retrieve %d active NOTAM in the database \n", len(*mgdb.activeNotams))
 	return mgdb.activeNotams
@@ -78,7 +79,7 @@ func (mgdb *Mongodb) GetActiveNotamsInDb() *[]notam.NotamStatus {
 
 // Retrieve the Operable Notams in the database
 func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
-	filter := bson.D{{"status", "Operable"}}
+	filter := bson.D{{"status", "Operable"}, {"notamreference.countrycode", mgdb.CountryCode}}
 	myCursor, err := notamCollection.Find(ctx, filter)
 	if err != nil {
 		log.Fatal(err)
@@ -109,7 +110,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 
 //
 func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
-	filter := bson.D{{"status", "Operable"}}
+	filter := bson.D{{"status", "Operable"},{"notamreference.countrycode", mgdb.CountryCode}}
 	projection := bson.D{
 		{"notamreference", 1},
 		{"status", 1},
@@ -134,10 +135,6 @@ func (mgdb Mongodb) IsOldNotam(key string) bool {
 	}
 
 	for _, ntmref := range *mgdb.activeNotams {
-		// if ntmref.Icaolocation == notam_location &&
-		// 	ntmref.Number == notam_number {
-		// 	return true
-		// }
 		if ntmref.GetKey() == key {
 			return true
 		}
@@ -150,8 +147,13 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamR
 
 	From(*mgdb.activeNotams).Where(func(c interface{}) bool {
 		for _, ntm := range currentNotams {
-			if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
-				ntm.Number == c.(notam.NotamStatus).Number {
+			// if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
+			// 	ntm.Number == c.(notam.NotamStatus).Number {
+			// 	return false
+			// }
+			var ntmRef notam.NotamStatus
+			ntmRef = c.(notam.NotamStatus)
+			if ntm.GetKey() == ntmRef.GetKey() {
 				return false
 			}
 		}
