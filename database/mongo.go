@@ -48,10 +48,8 @@ func getClient() *mongo.Client {
 			log.Fatal(err)
 		}
 	}
-
 	once.Do(onceBody)
 	notamCollection = client.Database("NOTAMS").Collection("notams")
-
 	return client
 }
 
@@ -67,6 +65,7 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 			log.Fatal(err)
 		} else {
 			fmt.Printf("NOTAM: %s in database \n", notam.Id)
+			mgdb.SetOperable(notam)
 		}
 	}
 }
@@ -163,6 +162,19 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamR
 	return &canceledNotams
 }
 
+func (mgdb Mongodb) SetOperable(notam *notam.Notam) {
+	filter := bson.M{"_id": notam.GetKey()}
+				setOperable := bson.D{
+					{"$set", bson.D{{"status", "Operable"}}},
+				}
+	_, err := notamCollection.UpdateOne(ctx, filter, setOperable)
+	if (err == nil) {
+		fmt.Printf("%s changed to Operable  \n", notam.Id)
+	} else {
+		fmt.Printf("Error during change to Operable %s \n", err)
+	}
+}
+
 func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamStatus) {
 	if len(*canceledNotams) > 0 {
 		for _, canceled := range *canceledNotams {
@@ -173,7 +185,6 @@ func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamStatus) {
 			setCancel := bson.D{
 				{"$set", bson.D{{"status", "Canceled"}}},
 			}
-
 			notamCollection.UpdateMany(ctx, filter, setCancel)
 		}
 	}

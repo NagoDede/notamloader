@@ -59,6 +59,17 @@ type jpAirports struct {
 	Title string `json:"Title"`
 }
 
+type notamList struct {
+	sync.RWMutex
+	m map[string]notam.NotamReference
+}
+
+type aisWebClient struct {
+	sync.RWMutex
+	Client *http.Client
+}
+
+var mongoClient *database.Mongodb
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
 // It recovers the relevant information from a json file, set in ./country/japan/def.json.
 // Then, it initiates the http and mongodb interfaces.
@@ -69,15 +80,54 @@ func (jpd *JpData) Process() {
 	//retrieve the configuration data from the json file
 	jpd.loadJsonFile("./country/japan/def.json")
 	//Init a the http client thanks tp the configuration data
-	jpd.newHttpClient()
-	jpd.initHttpClient()
+	mainHttpClient := newAisWebClient()//newHttpClient()
+	enrouteHttpClient := newAisWebClient()//newHttpClient()
+	jpd.connectHttpClient(mainHttpClient)
+	jpd.connectHttpClient(enrouteHttpClient)
 
 	fmt.Println("Connected to AIS Japan")
 
 	//Will contain all the retrieved Notams
-	allRetrievedNotams := make(map[string]notam.NotamReference)
+	notams :=  &notamList{m: make(map[string]notam.NotamReference)}// make(map[string]notam.NotamReference)
 
-	//define a default search to fullfill the form
+	//Initiate a new mongo db interface
+	mongoClient = database.NewMongoDb(jpd.CountryCode)
+	rand.Seed(time.Now().UnixNano())
+
+	jpd.notamByAirport(mainHttpClient,notams)
+	jpd.notamByEnRoute(enrouteHttpClient,notams)
+
+	fmt.Printf("Current NOTAMs: %d \n", len(notams.m))
+	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
+	canceledNotams := mongoClient.IdentifyCanceledNotams(notams.m)
+	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
+	mongoClient.SetCanceledNotamList(canceledNotams)
+	mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
+}
+	
+func (jpd *JpData) notamByEnRoute(aisClient *aisWebClient, notams *notamList){
+	mapsearch := JpNotamMapSubmit{
+		Enroute:    "1",
+		Period:     "24",
+		DispScopeE: "true",
+		DispScopeW: "true",
+	}
+	//Retrieve the en Route NOTAMs
+	//A hge amount of notam can be retrieved, to avoid server saturation,
+	// do it after airport notams update.
+	fmt.Printf("\n ************************ \n")
+	fmt.Printf("\n Retreive En Route NOTAMs \n")
+	//jpd.logoutHttpClient(mainHttpClient)
+	//jpd.connectHttpClient(mainHttpClient)
+	enRouteNotamRef := mapsearch.ListNotamReferences(aisClient, jpd.WebConfig.MapPage, jpd.WebConfig.MapAnswerPage)
+	jpd.resetHttpClient(aisClient)
+	jpd.getFullNotams(enRouteNotamRef, notams, mongoClient,aisClient)
+}
+
+
+func (jpd *JpData) notamByAirport(aisClient *aisWebClient, notams *notamList ){
+
+		//define a default search to fullfill the form
 	//Use 24h duration, retrieve the advisory and warning notams
 	notamSearch := JpNotamSearchForm{
 		location:   "RJNA",
@@ -89,79 +139,56 @@ func (jpd *JpData) Process() {
 		firstFlg:   "true",
 	}
 
-	mapsearch := JpNotamMapSubmit{
-		Enroute:    "1",
-		Period:     "24",
-		DispScopeE: "true",
-		DispScopeW: "true",
-	}
-
-	//Initiate a new mongo db interface
-	mongoClient := database.NewMongoDb(jpd.CountryCode)
-	rand.Seed(time.Now().UnixNano())
-
-	//Identify the NOTAM associated to an ICAO code (usually associated to an airport)
-	mainStart := time.Now()
+		//Identify the NOTAM associated to an ICAO code (usually associated to an airport)
+		//mainStart := time.Now()
 	for i, apt := range jpd.codeList.Airports {
-		start := time.Now()
+		//start := time.Now()
 		fmt.Printf("Retrieving NOTAM for %s %d/%d \n", apt.Icao, i, len(jpd.codeList.Airports))
 		//retrieve all the NOTAM references associated to the ICAO code
 		notamSearch.location = apt.Icao
-		aptNotam := notamSearch.ListNotamReferences(jpd.httpClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
+		aptNotam := notamSearch.ListNotamReferences(aisClient, jpd.WebConfig.NotamFirstPage, jpd.WebConfig.NotamNextPage)
 		fmt.Printf("\t %d NOTAM reference(s) identified \n", len(aptNotam))
 		//thanks the NOTAM reference, we gather the NOTAM information from the NotamDeatilPage
-		jpd.getFullNotams(aptNotam, allRetrievedNotams, mongoClient, jpd.httpClient)
+		jpd.getFullNotams(aptNotam, notams, mongoClient, aisClient)
 
-		if !jpd.resetOnDemand(mainStart, 10*time.Minute) {
-			jpd.resetOnDemand(start, 3*time.Minute)
-		}
+		// if !jpd.resetOnDemand(aisClient,mainStart, 10*time.Minute) {
+		// 	if jpd.resetOnDemand(aisClient,start, 3*time.Minute) {
+		// 		start = time.Now()
+		// 	}
+		// } else {
+		// 	mainStart = time.Now()
+		// }
 	}
-
-	//Retrieve the en Route NOTAMs
-	//A hge amount of notam can be retrieved, to avoid server saturation,
-	// do it after airport notams update.
-	fmt.Printf("\n ************************ \n")
-	fmt.Printf("\n Retreive En Route NOTAMs \n")
-	jpd.logoutHttpClient()
-	jpd.initHttpClient()
-	enRouteNotamRef := mapsearch.ListNotamReferences(jpd.httpClient, jpd.WebConfig.MapPage, jpd.WebConfig.MapAnswerPage)
-	jpd.logoutHttpClient()
-	jpd.initHttpClient()
-	jpd.getFullNotams(enRouteNotamRef, allRetrievedNotams, mongoClient, jpd.httpClient)
-
-	defer fmt.Printf("Current NOTAMs: %d \n", len(allRetrievedNotams))
-	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
-	canceledNotams := mongoClient.IdentifyCanceledNotams(allRetrievedNotams)
-	defer fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
-	defer mongoClient.SetCanceledNotamList(canceledNotams)
-	defer mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
 }
 
 func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
-	allRetrievedNotams map[string]notam.NotamReference,
+	//allRetrievedNotams map[string]notam.NotamReference,
+	allRetrievedNotams *notamList,
 	mongoClient *database.Mongodb,
-	httpClient http.Client) {
+	aisClient *aisWebClient) {
 
 	wg := new(sync.WaitGroup)
-	for _, notamRef := range notamReferences {
-
+	for i := range notamReferences {
+		 notamRef := notamReferences[i]
 		//skip empty items
 		if (notamRef.location == "") || (notamRef.notam_no == "") {
 			continue
 		}
-
 		//Record the refrence to identify the canceled
 		retrievedNotam := notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location, CountryCode: jpd.CountryCode}
-		_, exists := allRetrievedNotams[retrievedNotam.GetKey()]
+		allRetrievedNotams.RLock()
+		_, exists := allRetrievedNotams.m[retrievedNotam.GetKey()]
+		allRetrievedNotams.RUnlock()
 		if !exists {
-			allRetrievedNotams[retrievedNotam.GetKey()] = retrievedNotam
+			allRetrievedNotams.Lock()
+			allRetrievedNotams.m[retrievedNotam.GetKey()] = retrievedNotam
+			allRetrievedNotams.Unlock()
 		} else {
 			//skip the next of the work. There is no need to get the data
 			fmt.Printf("\t skip %s \n", retrievedNotam.GetKey())
 			continue
 		}
-
-		fmt.Printf("\t Total Retrieved NOTAM %d \n", len(allRetrievedNotams))
+		fmt.Printf("\t Total Retrieved NOTAM %d \n", len(allRetrievedNotams.m))
 
 		//extract the data from the webpage
 		if !mongoClient.IsOldNotam(notamRef.GetKey()) {
@@ -170,7 +197,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 				defer wg.Done()
 				fmt.Printf("(New) %s - %s \n", ref.location, ref.Number())
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
-				notam, err := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
+				notam, err := ref.FillInformation(aisClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
 				//no error, log the NOTAM in the Database if it is a new one
 				if err == nil {
 					if len(notam.Text) <= 20 {
@@ -188,16 +215,17 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 				} else {
 					//there is an error, reset the client and start again
 					fmt.Printf("\t Error to recover NOTAM %s - %s \n", ref.location, ref.notam_no)
-					jpd.logoutHttpClient()
-					jpd.initHttpClient()
-					notam, err1 := ref.FillInformation(httpClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
-					if err1 == nil {
-						if !mongoClient.IsOldNotam(notam.NotamReference.GetKey()) {
-							mongoClient.AddNotam(notam)
-						}
-					} else {
-						fmt.Println(err1)
-					}
+					// jpd.logoutHttpClient(httpClient)
+					// jpd.connectHttpClient(httpClient)
+					jpd.resetHttpClient(aisClient)
+					 notam, err1 := ref.FillInformation(aisClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
+					 if err1 == nil {
+					 	if !mongoClient.IsOldNotam(notam.NotamReference.GetKey()) {
+					 		mongoClient.AddNotam(notam)
+					 	}
+					 } else {
+					 	fmt.Println(err1)
+					 }
 				}
 
 			}(wg, notamRef)
@@ -317,7 +345,13 @@ func (jpd *JpData) IsAirportCode(code string) bool {
 	return false
 }
 
-func (jpd *JpData) newHttpClient() {
+func newAisWebClient() *aisWebClient {
+	client := &aisWebClient{}
+	client.Client = newHttpClient()
+	return client
+}
+
+func  newHttpClient() *http.Client {
 
 	//Create a cookie Jar to manage the login cookies
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
@@ -325,7 +359,7 @@ func (jpd *JpData) newHttpClient() {
 		log.Fatal(err)
 	}
 
-	jpd.httpClient = http.Client{Jar: jar,
+	return &http.Client{Jar: jar,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
 				Timeout:   60 * time.Second,
@@ -341,11 +375,47 @@ func (jpd *JpData) newHttpClient() {
 	}
 }
 
+func (jpd *JpData) resetHttpClient(aisclient *aisWebClient){
+	if jpd.IsConnected {
+		
+		aisclient.RLock()
+		resp, err := aisclient.Client.Get(jpd.WebConfig.LogOutPage)
+		aisclient.RUnlock()
+		if err == nil {
+			if (resp.StatusCode == 302) || (resp.StatusCode == 200) {
+				fmt.Println(" Connection Logout Succes")
+				jpd.IsConnected = false
+				return
+			}
+		} else {
+			fmt.Println(" Connection Logout Failed")
+		}
+
+		frmData := jpd.LoginData
+		time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+	//login to the page
+	v := url.Values{"formName": {frmData.FormName},
+		"password": {frmData.Password},
+		"userID":   {frmData.UserID}}
+
+	//connect to the website
+	aisclient.Lock()
+	resp, err = aisclient.Client.PostForm(jpd.WebConfig.LoginPage, v)
+	aisclient.Unlock()
+	if err != nil {
+		log.Printf("Connection Error \n If error due to certificate problem, install ca-certificates")
+		log.Fatal(err)
+	}
+	jpd.IsConnected = true
+	defer resp.Body.Close()
+	}
+}
+
 /**
  * initClient inits an http client to connect to the website  by sending the
  * data to the formular.
  */
-func (jpd *JpData) initHttpClient() {
+func (jpd *JpData) connectHttpClient(httpclient *aisWebClient) {
 	frmData := jpd.LoginData
 
 	//login to the page
@@ -354,19 +424,22 @@ func (jpd *JpData) initHttpClient() {
 		"userID":   {frmData.UserID}}
 
 	//connect to the website
-	resp, err := jpd.httpClient.PostForm(jpd.WebConfig.LoginPage, v)
+	httpclient.Lock()
+	resp, err := httpclient.Client.PostForm(jpd.WebConfig.LoginPage, v)
+	 httpclient.Unlock()
 	if err != nil {
 		log.Printf("Connection Error \n If error due to certificate problem, install ca-certificates")
 		log.Fatal(err)
 	}
 	jpd.IsConnected = true
 	defer resp.Body.Close()
-	jpd.httpClient.CloseIdleConnections()
+	httpclient.Client.CloseIdleConnections()
+
 }
 
-func (jpd *JpData) logoutHttpClient() {
+func (jpd *JpData) logoutHttpClient(httpClient *aisWebClient) {
 	if jpd.IsConnected {
-		resp, err := jpd.httpClient.Get(jpd.WebConfig.LogOutPage)
+		resp, err := httpClient.Client.Get(jpd.WebConfig.LogOutPage)
 		if err == nil {
 			if (resp.StatusCode == 302) || (resp.StatusCode == 200) {
 				fmt.Println(" Connection Logout Succes")
@@ -379,13 +452,11 @@ func (jpd *JpData) logoutHttpClient() {
 	}
 }
 
-func (jpd *JpData) resetOnDemand(start time.Time, resetTime time.Duration) bool {
+func (jpd *JpData) resetOnDemand(httpClient *aisWebClient, start time.Time, resetTime time.Duration) bool {
 
 	if time.Since(start) > resetTime {
 		fmt.Println("Exceed the " + resetTime.String() + " Duration -- reset Connection")
-		jpd.logoutHttpClient()
-		time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
-		jpd.initHttpClient()
+		jpd.resetHttpClient(httpClient)
 		return true
 	}
 	return false

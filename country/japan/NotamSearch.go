@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
+	_ "net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -29,40 +29,36 @@ type JpNotamSearchForm struct {
 	itemE      string `json:"itemE"`
 }
 
-
-
 //structure used to submit a map search
 // if location empty, retrieve all enroute data
 type JpNotamAnchor struct {
 	anchor string
 }
 
-var httpClientRef http.Client
-
-func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient http.Client, webpage string, nextWebPage string) []JpNotamDispForm {
+func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient *aisWebClient, webpage string, nextWebPage string) []JpNotamDispForm {
 	urlValues := structToMap(nsf)
-	httpClientRef = httpClient
+
 	//connect to the website
-	resp, err := httpClientRef.PostForm(webpage, urlValues)
+	httpClient.RLock()
+	resp, err := httpClient.Client.PostForm(webpage, urlValues)
+	httpClient.RUnlock()
 	if err != nil {
 		log.Printf("Unable to submit form for %v \n", nsf)
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	return listNotams(resp.Body, nextWebPage)
+	return listNotams(httpClient, resp.Body, nextWebPage)
 }
 
-
-
-func listNotams(body io.ReadCloser, nextWebPage string) []JpNotamDispForm {
+func listNotams(httpClient *aisWebClient, body io.ReadCloser, nextWebPage string) []JpNotamDispForm {
 	var notamrefs = make([]JpNotamDispForm, 0)
 	var page int
 	page = 1
-	return subListNotams(body, notamrefs[:], nextWebPage, &page)
+	return subListNotams(httpClient, body, notamrefs[:], nextWebPage, &page)
 }
 
 // Extract the data from the downloaded webpage.
-func subListNotams(body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
+func subListNotams(httpClient *aisWebClient, body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		fmt.Println("No url found for navaid extraction")
@@ -86,14 +82,17 @@ func subListNotams(body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage 
 		var anchor JpNotamAnchor
 		anchor.anchor = `next`
 		urlAnchor := structToMap(&anchor)
-		resp, err := httpClientRef.PostForm(nextWebPage, urlAnchor)
+		httpClient.RLock()
+		resp, err := httpClient.Client.PostForm(nextWebPage, urlAnchor)
+		httpClient.RUnlock()
 		if err == nil {
 			defer resp.Body.Close()
-			return subListNotams(resp.Body, notamRefs[:], nextWebPage, page)
+			return subListNotams(httpClient, resp.Body, notamRefs[:], nextWebPage, page)
 		} else 	{
 			log.Printf("Error to recover next page: %d", *page)
 			log.Println(err)
 		} 
+		
 	}
 return notamRefs
 }

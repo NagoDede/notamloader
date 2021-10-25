@@ -36,11 +36,13 @@ func (ndf *JpNotamDispForm) Number() string {
 	return fmt.Sprintf("%04d/%02d",number, year )
 }
 
-func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string, countryCode string) (*notam.Notam, error) {
+func (ndf *JpNotamDispForm) FillInformation(httpClient *aisWebClient, url string, countryCode string) (*notam.Notam, error) {
 
 	urlValues := structToMap(ndf)
-	resp, err := httpClient.PostForm(url, urlValues)
-
+	httpClient.RLock()
+	resp, err := httpClient.Client.PostForm(url, urlValues)
+	defer httpClient.RUnlock()
+	
 	if resp != nil {
 		notam := notamText(resp.Body)
 		notam.CountryCode=countryCode
@@ -53,10 +55,9 @@ func (ndf *JpNotamDispForm) FillInformation(httpClient http.Client, url string, 
 		fmt.Println(err)
 		return nil, errors.New("Nil answer")
 	}
-
 }
 
-func postNotamDetail(client http.Client, data url.Values, url string) (resp *http.Response, err error) {
+func postNotamDetail(client *aisWebClient, data url.Values, url string) (resp *http.Response, err error) {
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -69,7 +70,6 @@ func postNotamDetail(client http.Client, data url.Values, url string) (resp *htt
 	req.Header.Set("Cache-Control", "max-age=0")
 //	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9") //req.AddCookie(client.Jar.Cookies())
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9") //req.AddCookie(client.Jar.Cookies())
-
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	req.Header.Set("Sec-Fetch-Mode", "navigate")
 	req.Header.Set("Sec-Fetch-User", "?1")
@@ -81,7 +81,10 @@ func postNotamDetail(client http.Client, data url.Values, url string) (resp *htt
 	req.Header.Set("Host","aisjapan.mlit.go.jp")
 	req.Header.Set("Origin", "https://aisjapan.mlit.go.jp")
 	req.Header.Set("Referer", "https://aisjapan.mlit.go.jp/Search.do")
-	return client.Do(req)
+	client.RLock()
+	defer client.RUnlock()
+	res, err := client.Client.Do(req)
+	return res, err
 }
 
 func notamText(body io.ReadCloser) *notam.Notam {
@@ -147,9 +150,7 @@ func fillGeoData( notam *notam.Notam) *notam.Notam {
 	}
 
 	notam.GeoData.Radius,_ = strconv.Atoi(notam.NotamCode.Coordinates[11:14])
-
 	return notam
-	
 }
 
 func fillNumber(index int, a *goquery.Selection, notam *notam.Notam) *notam.Notam {

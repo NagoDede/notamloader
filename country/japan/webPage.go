@@ -18,7 +18,7 @@ type WebConfig struct {
 	MapPage 		string		`json:"mapPage"`
 	MapAnswerPage 	string 		`json:"mapAnswerPage"`
 	LogOutPage 		string 		`json:"logoutpage"`
-	httpClient      http.Client //share the httpClient
+	//httpClient      http.Client //share the httpClient
 	IsConnected		bool
 }
 
@@ -27,16 +27,16 @@ var nextFormData = url.Values{
 	"anchor": {"next"},
 }
 
-func (web *WebConfig) GetFirstPage(values url.Values) *goquery.Document {
-	return web.GetPage(web.NotamFirstPage, values)
+func (web *WebConfig) GetFirstPage(httpClient http.Client,values url.Values) *goquery.Document {
+	return web.GetPage(httpClient ,web.NotamFirstPage, values)
 }
 
-func (web *WebConfig) GetNextPage() *goquery.Document {
-	return web.GetPage(web.NotamNextPage, nextFormData)
+func (web *WebConfig) GetNextPage(httpClient http.Client) *goquery.Document {
+	return web.GetPage(httpClient, web.NotamNextPage, nextFormData)
 }
 
-func (web *WebConfig) GetPage(url string, values url.Values) *goquery.Document {
-	resp, err := web.httpClient.PostForm(url, values)
+func (web *WebConfig) GetPage(httpClient http.Client, url string, values url.Values) *goquery.Document {
+	resp, err := httpClient.PostForm(url, values)
 	if err != nil {
 		log.Println("If error due to certificate problem, install ca-certificates")
 		log.Fatal(err)
