@@ -7,21 +7,21 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"net"
+	_ "net"
 	"net/http"
-	"net/http/cookiejar"
+	_ "net/http/cookiejar"
 	"net/url"
 	"os"
 	"reflect"
 	"strings"
 	"sync"
-	_ "sync"
 	"time"
 
 	"github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/notam"
+	"github.com/NagoDede/notamloader/webclient"
 	_ "go.mongodb.org/mongo-driver/mongo"
-	"golang.org/x/net/publicsuffix"
+	_ "golang.org/x/net/publicsuffix"
 )
 
 var JapanAis JpData
@@ -59,15 +59,9 @@ type jpAirports struct {
 	Title string `json:"Title"`
 }
 
-type notamList struct {
-	sync.RWMutex
-	m map[string]notam.NotamReference
-}
 
-type aisWebClient struct {
-	sync.RWMutex
-	Client *http.Client
-}
+
+
 
 var mongoClient *database.Mongodb
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
@@ -80,15 +74,15 @@ func (jpd *JpData) Process() {
 	//retrieve the configuration data from the json file
 	jpd.loadJsonFile("./country/japan/def.json")
 	//Init a the http client thanks tp the configuration data
-	mainHttpClient := newAisWebClient()//newHttpClient()
-	enrouteHttpClient := newAisWebClient()//newHttpClient()
+	mainHttpClient := webclient.NewAisWebClient()//newHttpClient()
+	enrouteHttpClient := webclient.NewAisWebClient()//newHttpClient()
 	jpd.connectHttpClient(mainHttpClient)
 	jpd.connectHttpClient(enrouteHttpClient)
 
 	fmt.Println("Connected to AIS Japan")
 
 	//Will contain all the retrieved Notams
-	notams :=  &notamList{m: make(map[string]notam.NotamReference)}// make(map[string]notam.NotamReference)
+	notams := notam.NewNotamList() 	// &notam.NotamList{m: make(map[string]NotamReference)}// make(map[string]notam.NotamReference)
 
 	//Initiate a new mongo db interface
 	mongoClient = database.NewMongoDb(jpd.CountryCode)
@@ -97,15 +91,15 @@ func (jpd *JpData) Process() {
 	jpd.notamByAirport(mainHttpClient,notams)
 	jpd.notamByEnRoute(enrouteHttpClient,notams)
 
-	fmt.Printf("Current NOTAMs: %d \n", len(notams.m))
+	fmt.Printf("Current NOTAMs: %d \n", len(notams.Data))
 	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
-	canceledNotams := mongoClient.IdentifyCanceledNotams(notams.m)
+	canceledNotams := mongoClient.IdentifyCanceledNotams(notams.Data)
 	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
 	mongoClient.SetCanceledNotamList(canceledNotams)
 	mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
 }
 	
-func (jpd *JpData) notamByEnRoute(aisClient *aisWebClient, notams *notamList){
+func (jpd *JpData) notamByEnRoute(aisClient *webclient.AisWebClient, notams *notam.NotamList){
 	mapsearch := JpNotamMapSubmit{
 		Enroute:    "1",
 		Period:     "24",
@@ -125,7 +119,7 @@ func (jpd *JpData) notamByEnRoute(aisClient *aisWebClient, notams *notamList){
 }
 
 
-func (jpd *JpData) notamByAirport(aisClient *aisWebClient, notams *notamList ){
+func (jpd *JpData) notamByAirport(aisClient *webclient.AisWebClient, notams *notam.NotamList ){
 
 		//define a default search to fullfill the form
 	//Use 24h duration, retrieve the advisory and warning notams
@@ -163,9 +157,9 @@ func (jpd *JpData) notamByAirport(aisClient *aisWebClient, notams *notamList ){
 
 func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 	//allRetrievedNotams map[string]notam.NotamReference,
-	allRetrievedNotams *notamList,
+	allRetrievedNotams *notam.NotamList,
 	mongoClient *database.Mongodb,
-	aisClient *aisWebClient) {
+	aisClient *webclient.AisWebClient) {
 
 	wg := new(sync.WaitGroup)
 	for i := range notamReferences {
@@ -177,18 +171,18 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 		//Record the refrence to identify the canceled
 		retrievedNotam := notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location, CountryCode: jpd.CountryCode}
 		allRetrievedNotams.RLock()
-		_, exists := allRetrievedNotams.m[retrievedNotam.GetKey()]
+		_, exists := allRetrievedNotams.Data[retrievedNotam.GetKey()]
 		allRetrievedNotams.RUnlock()
 		if !exists {
 			allRetrievedNotams.Lock()
-			allRetrievedNotams.m[retrievedNotam.GetKey()] = retrievedNotam
+			allRetrievedNotams.Data[retrievedNotam.GetKey()] = retrievedNotam
 			allRetrievedNotams.Unlock()
 		} else {
 			//skip the next of the work. There is no need to get the data
 			fmt.Printf("\t skip %s \n", retrievedNotam.GetKey())
 			continue
 		}
-		fmt.Printf("\t Total Retrieved NOTAM %d \n", len(allRetrievedNotams.m))
+		fmt.Printf("\t Total Retrieved NOTAM %d \n", len(allRetrievedNotams.Data))
 
 		//extract the data from the webpage
 		if !mongoClient.IsOldNotam(notamRef.GetKey()) {
@@ -345,37 +339,10 @@ func (jpd *JpData) IsAirportCode(code string) bool {
 	return false
 }
 
-func newAisWebClient() *aisWebClient {
-	client := &aisWebClient{}
-	client.Client = newHttpClient()
-	return client
-}
 
-func  newHttpClient() *http.Client {
 
-	//Create a cookie Jar to manage the login cookies
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	return &http.Client{Jar: jar,
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout:   60 * time.Second,
-				KeepAlive: 60 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   60 * time.Second,
-			ResponseHeaderTimeout: 60 * time.Second,
-			ExpectContinueTimeout: 20 * time.Second,
-			MaxIdleConns:          0,
-			MaxConnsPerHost:       0,
-			MaxIdleConnsPerHost:   100,
-		},
-	}
-}
-
-func (jpd *JpData) resetHttpClient(aisclient *aisWebClient){
+func (jpd *JpData) resetHttpClient(aisclient *webclient.AisWebClient){
 	if jpd.IsConnected {
 		
 		aisclient.RLock()
@@ -415,7 +382,7 @@ func (jpd *JpData) resetHttpClient(aisclient *aisWebClient){
  * initClient inits an http client to connect to the website  by sending the
  * data to the formular.
  */
-func (jpd *JpData) connectHttpClient(httpclient *aisWebClient) {
+func (jpd *JpData) connectHttpClient(httpclient *webclient.AisWebClient) {
 	frmData := jpd.LoginData
 
 	//login to the page
@@ -437,7 +404,7 @@ func (jpd *JpData) connectHttpClient(httpclient *aisWebClient) {
 
 }
 
-func (jpd *JpData) logoutHttpClient(httpClient *aisWebClient) {
+func (jpd *JpData) logoutHttpClient(httpClient *webclient.AisWebClient) {
 	if jpd.IsConnected {
 		resp, err := httpClient.Client.Get(jpd.WebConfig.LogOutPage)
 		if err == nil {
@@ -452,7 +419,7 @@ func (jpd *JpData) logoutHttpClient(httpClient *aisWebClient) {
 	}
 }
 
-func (jpd *JpData) resetOnDemand(httpClient *aisWebClient, start time.Time, resetTime time.Duration) bool {
+func (jpd *JpData) resetOnDemand(httpClient *webclient.AisWebClient, start time.Time, resetTime time.Duration) bool {
 
 	if time.Since(start) > resetTime {
 		fmt.Println("Exceed the " + resetTime.String() + " Duration -- reset Connection")

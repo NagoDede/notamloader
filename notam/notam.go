@@ -1,5 +1,7 @@
 package notam
-
+import (
+	"sync"
+)
 type Notam struct {
 	Id string `bson:"_id" json:"id,omitempty"`
 	NotamReference
@@ -50,6 +52,15 @@ type NotamCode struct {
 	Coordinates string `json:"coordinates"`
 }
 
+type NotamList struct {
+	sync.RWMutex
+	Data map[string]NotamReference
+}
+
 func NewNotam() *Notam {
 	return new(Notam)
+}
+
+func NewNotamList() *NotamList{
+	return &NotamList{Data: make(map[string]NotamReference)}
 }

@@ -9,11 +9,12 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strings"
 	"strconv"
-	"github.com/NagoDede/notamloader/notam"
-	"github.com/PuerkitoBio/goquery"
+	"strings"
 
+	"github.com/NagoDede/notamloader/notam"
+	"github.com/NagoDede/notamloader/webclient"
+	"github.com/PuerkitoBio/goquery"
 )
 
 type JpNotamDispForm struct {
@@ -36,7 +37,7 @@ func (ndf *JpNotamDispForm) Number() string {
 	return fmt.Sprintf("%04d/%02d",number, year )
 }
 
-func (ndf *JpNotamDispForm) FillInformation(httpClient *aisWebClient, url string, countryCode string) (*notam.Notam, error) {
+func (ndf *JpNotamDispForm) FillInformation(httpClient *webclient.AisWebClient, url string, countryCode string) (*notam.Notam, error) {
 
 	urlValues := structToMap(ndf)
 	httpClient.RLock()
@@ -57,7 +58,7 @@ func (ndf *JpNotamDispForm) FillInformation(httpClient *aisWebClient, url string
 	}
 }
 
-func postNotamDetail(client *aisWebClient, data url.Values, url string) (resp *http.Response, err error) {
+func postNotamDetail(client *webclient.AisWebClient, data url.Values, url string) (resp *http.Response, err error) {
 
 	req, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 	if err != nil {

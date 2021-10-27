@@ -8,6 +8,7 @@ import (
 	_ "net/http"
 	"strings"
 
+	"github.com/NagoDede/notamloader/webclient"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -35,7 +36,7 @@ type JpNotamAnchor struct {
 	anchor string
 }
 
-func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient *aisWebClient, webpage string, nextWebPage string) []JpNotamDispForm {
+func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient *webclient.AisWebClient, webpage string, nextWebPage string) []JpNotamDispForm {
 	urlValues := structToMap(nsf)
 
 	//connect to the website
@@ -50,7 +51,7 @@ func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient *aisWebClient, webp
 	return listNotams(httpClient, resp.Body, nextWebPage)
 }
 
-func listNotams(httpClient *aisWebClient, body io.ReadCloser, nextWebPage string) []JpNotamDispForm {
+func listNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, nextWebPage string) []JpNotamDispForm {
 	var notamrefs = make([]JpNotamDispForm, 0)
 	var page int
 	page = 1
@@ -58,7 +59,7 @@ func listNotams(httpClient *aisWebClient, body io.ReadCloser, nextWebPage string
 }
 
 // Extract the data from the downloaded webpage.
-func subListNotams(httpClient *aisWebClient, body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
+func subListNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		fmt.Println("No url found for navaid extraction")
