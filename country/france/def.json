@@ -1,0 +1,11 @@
+{
+ "country": "France",
+ "countryCode": "FR",
+ "logoutpage": "",
+ "notamRequestUrl": "http://notamweb.aviation-civile.gouv.fr/Script/IHM/Bul_FIR.php?Langue=EN",
+ "__notes__":"Contains all the airports ICAO codes",
+ "codeListPath":"",
+ "__notes_":"The following NOTAM location indicators are extracted from the AIS France. It contains dedicated NOTAM Location indicators",
+ "__notes_":"No worries if a code appears, tool will keep only one",
+ "requiredLocation":["LFBB","LFRR","LFMM","LFFF","LFEE", "LFXX"]
+}
