@@ -1,13 +1,15 @@
 package webclient
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"sync"
 	"time"
-
+	"reflect"
 	"golang.org/x/net/publicsuffix"
 )
 type AisWebClient struct {
@@ -44,4 +46,25 @@ func  newHttpClient() *http.Client {
 			MaxIdleConnsPerHost:   100,
 		},
 	}
+}
+
+func StructToMap(i interface{}) (values url.Values) {
+	values = url.Values{}
+	iVal := reflect.ValueOf(i).Elem()
+	typ := iVal.Type()
+	for i := 0; i < iVal.NumField(); i++ {
+		
+		values.Set(typ.Field(i).Name, fmt.Sprint(iVal.Field(i)))
+
+		//TODO compléter si Field est un array
+	}
+	return
+}
+
+func (aisclient *AisWebClient) SendPost(url string, form interface{}) (resp *http.Response, err error){
+	urlValues := StructToMap(form)
+	aisclient.RLock()
+	resp, err = aisclient.Client.PostForm(url, urlValues)
+	aisclient.RUnlock()
+	return
 }

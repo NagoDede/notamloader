@@ -12,7 +12,7 @@ import (
 	_ "net/http/cookiejar"
 	"net/url"
 	"os"
-	"reflect"
+
 	"strings"
 	"sync"
 	"time"
@@ -230,15 +230,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 	wg.Wait()
 }
 
-func structToMap(i interface{}) (values url.Values) {
-	values = url.Values{}
-	iVal := reflect.ValueOf(i).Elem()
-	typ := iVal.Type()
-	for i := 0; i < iVal.NumField(); i++ {
-		values.Set(typ.Field(i).Name, fmt.Sprint(iVal.Field(i)))
-	}
-	return
-}
+
 
 /*
 Load the JSON file used for the access to the Japan AIP.

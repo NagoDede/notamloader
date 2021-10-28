@@ -5,22 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	_"log"
-	"math/rand"
-	_"net"
-	"net/http"
-	_"net/http/cookiejar"
-	_"net/url"
+	_ "log"
+
+	_ "net"
+	_"net/http"
+	_ "net/http/cookiejar"
+	_ "net/url"
 	"os"
-	_"reflect"
-	_"strings"
-	"sync"
-	"time"
+	_ "reflect"
+	_ "strings"
+	_"sync"
 
 	"github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/notam"
+	"github.com/NagoDede/notamloader/webclient"
+	_ "github.com/NagoDede/notamloader/webclient"
 	_ "go.mongodb.org/mongo-driver/mongo"
-	_"golang.org/x/net/publicsuffix"
+	_ "golang.org/x/net/publicsuffix"
 )
 
 var FranceAis DefData
@@ -33,12 +34,11 @@ type DefData struct {
 	RequiredLocation []string        `json:"requiredLocation"`
 }
 
-type aisWebClient struct {
-	sync.RWMutex
-	Client *http.Client
-}
+
 
 var mongoClient *database.Mongodb
+var aisClient *webclient.AisWebClient
+
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
 // It recovers the relevant information from a json file, set in ./country/japan/def.json.
 // Then, it initiates the http and mongodb interfaces.
@@ -49,7 +49,7 @@ func (def *DefData) Process() {
 	//retrieve the configuration data from the json file
 	def.loadJsonFile("./country/france/def.json")
 	//Init a the http client thanks tp the configuration data
-	//mainHttpClient := newAisWebClient()//newHttpClient()
+//	mainHttpClient := webclient.NewAisWebClient()//newHttpClient()
 	//enrouteHttpClient := newAisWebClient()//newHttpClient()
 	fmt.Println("Connected to AIS France")
 
@@ -58,8 +58,9 @@ func (def *DefData) Process() {
 
 	//Initiate a new mongo db interface
 	mongoClient = database.NewMongoDb(def.CountryCode)
-	rand.Seed(time.Now().UnixNano())
+	aisClient = webclient.NewAisWebClient()
 
+	def.RetrieveAllNotams()
 
 	fmt.Printf("Current NOTAMs: %d \n", len(notams.Data))
 	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.

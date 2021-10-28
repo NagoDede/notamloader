@@ -37,7 +37,7 @@ type JpNotamAnchor struct {
 }
 
 func (nsf *JpNotamSearchForm) ListNotamReferences(httpClient *webclient.AisWebClient, webpage string, nextWebPage string) []JpNotamDispForm {
-	urlValues := structToMap(nsf)
+	urlValues :=  webclient.StructToMap(nsf)
 
 	//connect to the website
 	httpClient.RLock()
@@ -82,7 +82,7 @@ func subListNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, notam
 		fmt.Printf("Page %d \n", *page)
 		var anchor JpNotamAnchor
 		anchor.anchor = `next`
-		urlAnchor := structToMap(&anchor)
+		urlAnchor :=  webclient.StructToMap(&anchor)
 		httpClient.RLock()
 		resp, err := httpClient.Client.PostForm(nextWebPage, urlAnchor)
 		httpClient.RUnlock()

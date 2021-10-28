@@ -22,7 +22,7 @@ type JpNotamMapSubmit struct {
 
 
 func (mapSearch *JpNotamMapSubmit) ListNotamReferences(httpClient *webclient.AisWebClient, webPage string, nextWebPage string) []JpNotamDispForm {
-	urlValues := structToMap(mapSearch)
+	urlValues := webclient.StructToMap(mapSearch)
 	httpClient.RLock()
 	
 	resp, err := httpClient.Client.PostForm(webPage, urlValues)
@@ -67,7 +67,7 @@ func subListEnrouteNotams(httpClient *webclient.AisWebClient, body io.ReadCloser
 		fmt.Printf("Page %d \n", *page)
 		var anchor JpNotamAnchor
 		anchor.anchor = `next`
-		urlAnchor := structToMap(&anchor)
+		urlAnchor :=  webclient.StructToMap(&anchor)
 		httpClient.RLock()
 		resp, err := httpClient.Client.PostForm(nextWebPage, urlAnchor)
 		httpClient.RUnlock()

@@ -39,7 +39,7 @@ func (ndf *JpNotamDispForm) Number() string {
 
 func (ndf *JpNotamDispForm) FillInformation(httpClient *webclient.AisWebClient, url string, countryCode string) (*notam.Notam, error) {
 
-	urlValues := structToMap(ndf)
+	urlValues :=  webclient.StructToMap(ndf)
 	httpClient.RLock()
 	resp, err := httpClient.Client.PostForm(url, urlValues)
 	defer httpClient.RUnlock()
