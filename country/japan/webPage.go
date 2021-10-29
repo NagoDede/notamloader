@@ -10,16 +10,16 @@ import (
 )
 
 type WebConfig struct {
-	CountryDir      string      `json:"country"`
-	LoginPage       string      `json:"loginPage"`
-	NotamFirstPage  string      `json:"notamFirstPage"`
-	NotamDetailPage string      `json:"notamDetailPage"`
-	NotamNextPage   string      `json:"notamNextPage"`
-	MapPage 		string		`json:"mapPage"`
-	MapAnswerPage 	string 		`json:"mapAnswerPage"`
-	LogOutPage 		string 		`json:"logoutpage"`
+	CountryDir      string `json:"country"`
+	LoginPage       string `json:"loginPage"`
+	NotamFirstPage  string `json:"notamFirstPage"`
+	NotamDetailPage string `json:"notamDetailPage"`
+	NotamNextPage   string `json:"notamNextPage"`
+	MapPage         string `json:"mapPage"`
+	MapAnswerPage   string `json:"mapAnswerPage"`
+	LogOutPage      string `json:"logoutpage"`
 	//httpClient      http.Client //share the httpClient
-	IsConnected		bool
+	IsConnected bool
 }
 
 //Values used to generate a Next webpage request
@@ -27,8 +27,8 @@ var nextFormData = url.Values{
 	"anchor": {"next"},
 }
 
-func (web *WebConfig) GetFirstPage(httpClient http.Client,values url.Values) *goquery.Document {
-	return web.GetPage(httpClient ,web.NotamFirstPage, values)
+func (web *WebConfig) GetFirstPage(httpClient http.Client, values url.Values) *goquery.Document {
+	return web.GetPage(httpClient, web.NotamFirstPage, values)
 }
 
 func (web *WebConfig) GetNextPage(httpClient http.Client) *goquery.Document {
@@ -45,7 +45,7 @@ func (web *WebConfig) GetPage(httpClient http.Client, url string, values url.Val
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		fmt.Println("No url found for navaid extraction")
+		fmt.Println("Unable to extract data from Webpage (GetPage)")
 		log.Fatal(err)
 	}
 	return doc

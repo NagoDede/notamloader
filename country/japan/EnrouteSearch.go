@@ -47,7 +47,7 @@ func listEnrouteNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, n
 func subListEnrouteNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
-		fmt.Println("No url found for navaid extraction")
+		fmt.Println("Unable to extract data from en Route Webpage (subListEnrouteNotams)")
 		log.Fatal(err)
 	}
 

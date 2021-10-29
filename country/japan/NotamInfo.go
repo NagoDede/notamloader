@@ -93,7 +93,7 @@ func notamText(body io.ReadCloser) *notam.Notam {
 
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
-		fmt.Println("No url found for navaid extraction")
+		fmt.Println("Unable to retrieve NOTAM info (see NotamText)")
 		log.Fatal(err)
 	}
 

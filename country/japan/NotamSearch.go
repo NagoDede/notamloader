@@ -62,7 +62,7 @@ func listNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, nextWebP
 func subListNotams(httpClient *webclient.AisWebClient, body io.ReadCloser, notamRefs []JpNotamDispForm, nextWebPage string, page *int) []JpNotamDispForm {
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
-		fmt.Println("No url found for navaid extraction")
+		fmt.Println("Unable to extract data from webpage (subListNotams)")
 		log.Fatal(err)
 	}
 
