@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/NagoDede/notamloader/notam"
@@ -19,7 +20,7 @@ import (
 type Mongodb struct {
 	client       *mongo.Client
 	activeNotams *[]notam.NotamStatus
-	CountryCode		string
+	CountryCode  string
 }
 
 var client *mongo.Client
@@ -95,6 +96,9 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 // The file is Gzipped.
 func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	var notamToPrint = mgdb.GetActiveNotamsData()
+
+	os.Remove(path)
+
 	file, err := os.OpenFile(path, os.O_CREATE, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
@@ -105,11 +109,27 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	encoder := json.NewEncoder(file)
 	defer file.Close()
 	encoder.Encode(notamToPrint)
+
+	formatNotamFile(path)
+}
+
+func formatNotamFile(path string) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	text := string(content)
+	text = strings.ReplaceAll(text, "},", "},\n")
+	text = strings.ReplaceAll(text, "\",\"", "\",\n\"")
+
+	os.Remove(path)
+	os.WriteFile(path, []byte(text), 0666)
 }
 
 //
 func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
-	filter := bson.D{{"status", "Operable"},{"notamreference.countrycode", mgdb.CountryCode}}
+	filter := bson.D{{"status", "Operable"}, {"notamreference.countrycode", mgdb.CountryCode}}
 	projection := bson.D{
 		{"notamreference", 1},
 		{"status", 1},
@@ -128,7 +148,7 @@ func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
 }
 
 func (mgdb Mongodb) IsOldNotam(key string) bool {
-//	IsOldNotam(notam_location string, notam_number string) 
+	//	IsOldNotam(notam_location string, notam_number string)
 	if *mgdb.activeNotams == nil {
 		return false
 	}
@@ -164,11 +184,11 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamR
 
 func (mgdb Mongodb) SetOperable(notam *notam.Notam) {
 	filter := bson.M{"_id": notam.GetKey()}
-				setOperable := bson.D{
-					{"$set", bson.D{{"status", "Operable"}}},
-				}
+	setOperable := bson.D{
+		{"$set", bson.D{{"status", "Operable"}}},
+	}
 	_, err := notamCollection.UpdateOne(ctx, filter, setOperable)
-	if (err == nil) {
+	if err == nil {
 		fmt.Printf("%s changed to Operable  \n", notam.Id)
 	} else {
 		fmt.Printf("Error during change to Operable %s \n", err)
