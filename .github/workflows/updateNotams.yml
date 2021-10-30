@@ -47,7 +47,7 @@ jobs:
           personal_token: ${{ secrets.NOTAMS_TOKEN }}
           external_repository: NagoDede/fly-out.fr
           destination_dir: ./content/english/notams
-          publish_dir: ./notamloader/web
+          publish_dir: ./web/notams
           keep_files: true
           user_name: NagoDede
           user_email: nagoydede@yahoo.com
