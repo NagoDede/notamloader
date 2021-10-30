@@ -42,7 +42,7 @@ jobs:
         git config --local user.email "nagodede@github.com"
         git config --local user.name "GitHub Action"
         git add --all 
-        git commit --allow-empty -m "Update AIPs" -a
+        git commit --allow-empty -m "Update NOTAMs" -a
         
     - name: Push changes
       uses: ad-m/github-push-action@master
