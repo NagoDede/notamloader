@@ -96,7 +96,7 @@ func (jpd *JpData) Process() {
 	canceledNotams := mongoClient.IdentifyCanceledNotams(notams.Data)
 	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
 	mongoClient.SetCanceledNotamList(canceledNotams)
-	mongoClient.WriteActiveNotamToFile("//tmp/Notam/japan.json")
+	mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
 }
 	
 func (jpd *JpData) notamByEnRoute(aisClient *webclient.AisWebClient, notams *notam.NotamList){
