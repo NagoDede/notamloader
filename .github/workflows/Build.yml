@@ -30,9 +30,8 @@ jobs:
     - name: Build
       run: go build -v .
 
-    - name: Commit files
-      run: |
-        git config --local user.email "nagodede@github.com"
-        git config --local user.name "GitHub Action"
-        git add --all 
-        git commit --allow-empty -m "Update AIPs" -a
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v2
+      with:
+        name: notamloader-exe
+        path: notamloader
