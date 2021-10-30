@@ -7,5 +7,6 @@ require (
 	github.com/ahmetb/go-linq v3.0.0+incompatible
 	//github.com/go-playground/form v3.1.4+incompatible
 	go.mongodb.org/mongo-driver v1.5.1
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/net v0.0.0-20210916014120-12bc252f5db8
 )
