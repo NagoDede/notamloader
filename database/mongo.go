@@ -124,7 +124,11 @@ func formatNotamFile(path string) {
 	text = strings.ReplaceAll(text, "\",\"", "\",\n\"")
 
 	os.Remove(path)
-	os.WriteFile(path, []byte(text), 0666)
+	fdb := os.WriteFile(path, []byte(text), 0666)
+	if fdb != nil {
+		log.Fatal(fdb)
+	}
+	fmt.Printf("Success, write File %s \n", path)
 }
 
 //
