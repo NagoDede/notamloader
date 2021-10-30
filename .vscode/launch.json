@@ -8,8 +8,8 @@
         {
             "name": "Launch",
             "env": {
-                "JAPAN_AIP_PWD": "qjf314",
-                "JAPAN_AIP_USERID": "vdetroyat"
+                "JAPAN_AIP_PWD": "",
+                "JAPAN_AIP_USERID": ""
             },
             "type": "go",
             "request": "launch",
