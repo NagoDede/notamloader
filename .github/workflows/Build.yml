@@ -57,7 +57,7 @@ jobs:
           external_repository: NagoDede/fly-out.fr
           destination_dir: ./content/english/notams
           publish_dir: ./notamloader/web
-          #   keep_files: true
+          keep_files: true
           user_name: NagoDede
           user_email: nagoydede@yahoo.com
           publish_branch: master
