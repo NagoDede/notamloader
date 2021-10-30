@@ -26,7 +26,7 @@ jobs:
       env:
          JAPAN_AIP_PWD: ${{ secrets.JAPAN_AIP_PWD }}
          JAPAN_AIP_USERID: ${{secrets.JAPAN_AIP_USERID }}
-      run: ./notamloader
+      run: ./notamloader/notamloader
       
     - name: Commit files
       run: |
