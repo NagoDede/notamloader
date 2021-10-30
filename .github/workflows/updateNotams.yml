@@ -1,0 +1,56 @@
+name: updateNotams
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "5 */3 * * *"
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+   
+         
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.17
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Execute
+      shell: bash
+      env:
+         JAPAN_AIP_PWD: ${{ secrets.JAPAN_AIP_PWD }}
+         JAPAN_AIP_USERID: ${{secrets.JAPAN_AIP_USERID }}
+      run: ./notamloader
+      
+    - name: Commit files
+      run: |
+        git config --local user.email "nagodede@github.com"
+        git config --local user.name "GitHub Action"
+        git add --all 
+        git commit --allow-empty -m "Update AIPs" -a
+        
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
+
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+          personal_token: ${{ secrets.NOTAMS_TOKEN }}
+          external_repository: NagoDede/fly-out.fr
+          destination_dir: ./content/english/notams
+          publish_dir: ./notamloader/web
+          #   keep_files: true
+          user_name: NagoDede
+          user_email: nagoydede@yahoo.com
+          publish_branch: master
+        #   cname: example.com
+
