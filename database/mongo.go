@@ -108,7 +108,7 @@ log.Fatal(err1)
 
 
 var notamToPrint = mgdb.GetActiveNotamsData()
-fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
+	fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
 	os.Remove(path)
 
 	file, err := os.OpenFile(path, os.O_CREATE, os.ModePerm)
@@ -123,6 +123,13 @@ fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
 	encoder.Encode(notamToPrint)
 
 	formatNotamFile(path)
+	
+	fi, err := f.Stat(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("The file is %d bytes long", fi.Size())
 }
 
 func formatNotamFile(path string) {
