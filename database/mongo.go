@@ -131,16 +131,16 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	//defer writer.Close()
 	encoder := json.NewEncoder(file)
 	encoder.Encode(notamToPrint)
-	defer file.Close()
+	file.Close()
 	
-	formatNotamFile(tmpFile)
+	//formatNotamFile(tmpFile)
 	
 	fi, err := os.Stat(tmpFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("The file is %d bytes long", fi.Size())
+	fmt.Printf("The file is %d bytes long \n", fi.Size())
 	
 	source, err := os.Open(tmpFile)
         if err != nil {
@@ -160,7 +160,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("The copied file is %d bytes long", fi.Size())
+	fmt.Printf("The copied file is %d bytes long \n", fi.Size())
 	
 }
 
