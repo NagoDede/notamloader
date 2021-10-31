@@ -52,7 +52,7 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
           personal_token: ${{ secrets.NOTAMS_TOKEN }}
-          external_repository: NagoDede/NagoDede/nagodede.github.io
+          external_repository: NagoDede/nagodede.github.io
           destination_dir: ./notams
           publish_dir: ./web/notams/
           keep_files: true
