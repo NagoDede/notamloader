@@ -108,7 +108,7 @@ log.Fatal(err1)
 
 
 var notamToPrint = mgdb.GetActiveNotamsData()
-fmt.Printf("Notams to print: %i \n", len(notamToPrint))
+fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
 	os.Remove(path)
 
 	file, err := os.OpenFile(path, os.O_CREATE, os.ModePerm)
