@@ -122,7 +122,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	
 	os.Remove(tmpFile)
 
-	file, err := os.OpenFile(tmpFile, os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
