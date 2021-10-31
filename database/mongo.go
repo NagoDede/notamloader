@@ -107,7 +107,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	
 	
 	name := filepath.Base(path)
-	tmpFile := filepath(os.TempDir(), name)
+	tmpFile := filepath.Join(os.TempDir(), name)
  
 	// Getting absolute path of hello.go
 	abs, err1 = filepath.Abs(path)
@@ -146,13 +146,13 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	
 	source, err := os.Open(tmpFile)
         if err != nil {
-                return 0, err
+		log.Fatal(err)
         }
         defer source.Close()
 
         destination, err := os.Create(path)
         if err != nil {
-                return 0, err
+                log.Fatal(err)
         }
         defer destination.Close()
         nBytes, err := io.Copy(destination, source)
