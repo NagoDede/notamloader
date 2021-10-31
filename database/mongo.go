@@ -130,7 +130,10 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	//writer := gzip.NewWriter(file)
 	//defer writer.Close()
 	encoder := json.NewEncoder(file)
-	encoder.Encode(notamToPrint)
+	err = encoder.Encode(notamToPrint)
+	if err != nil {
+		log.Fatal(err)
+	}
 	file.Close()
 	
 	//formatNotamFile(tmpFile)
