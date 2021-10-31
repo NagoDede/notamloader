@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
    
-         
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
@@ -33,7 +32,7 @@ jobs:
         git config --local user.email "nagodede@github.com"
         git config --local user.name "GitHub Action"
         git add --all 
-        git commit --allow-empty -m "Update AIPs" -a
+        git commit --allow-empty -m "Update NOTAMs" -a
         
     - name: Push changes
       uses: ad-m/github-push-action@master
@@ -46,11 +45,10 @@ jobs:
       with:
           personal_token: ${{ secrets.NOTAMS_TOKEN }}
           external_repository: NagoDede/fly-out.fr
-          destination_dir: ./content/english/notams
-          publish_dir: ../web/notams
+          destination_dir: ./content/english/aip/japan
+          publish_dir: ./web/notams/
           keep_files: true
           user_name: NagoDede
           user_email: nagoydede@yahoo.com
           publish_branch: master
         #   cname: example.com
-
