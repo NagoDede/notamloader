@@ -136,7 +136,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	}
 	file.Close()
 	
-	//formatNotamFile(tmpFile)
+	formatNotamFile(tmpFile)
 	
 	fi, err := os.Stat(tmpFile)
 	if err != nil {
