@@ -97,7 +97,19 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	// Getting absolute path of hello.go
 	abs, err1 := filepath.Abs(path)
-
+	// Printing if there is no error
+	if err1 == nil {
+		fmt.Println("Absolute path is:", abs)
+	} else {
+	log.Fatal(err1)
+	}
+	
+	
+	name := filepath.Base(path)
+	tmpFile := filepath(os.TempDir(), name)
+ 
+	// Getting absolute path of hello.go
+	abs, err1 = filepath.Abs(path)
 	// Printing if there is no error
 	if err1 == nil {
 		fmt.Println("Absolute path is:", abs)
@@ -105,11 +117,13 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	log.Fatal(err1)
 	}
 
+
 	var notamToPrint = mgdb.GetActiveNotamsData()
 	fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
-	os.Remove(path)
+	
+	os.Remove(tmpFile)
 
-	file, err := os.OpenFile(path, os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile(tmpFile, os.O_CREATE, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,14 +134,35 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	defer file.Close()
 	encoder.Encode(notamToPrint)
 
-	//formatNotamFile(path)
+	formatNotamFile(tmpFile)
 	
-	fi, err := os.Stat(path)
+	fi, err := os.Stat(tmpFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf("The file is %d bytes long", fi.Size())
+	
+	source, err := os.Open(tmpFile)
+        if err != nil {
+                return 0, err
+        }
+        defer source.Close()
+
+        destination, err := os.Create(path)
+        if err != nil {
+                return 0, err
+        }
+        defer destination.Close()
+        nBytes, err := io.Copy(destination, source)
+	
+	fi, err = os.Stat(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("The copied file is %d bytes long", fi.Size())
+	
 }
 
 func formatNotamFile(path string) {
