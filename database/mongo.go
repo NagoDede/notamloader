@@ -155,7 +155,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
                 log.Fatal(err)
         }
         defer destination.Close()
-        _, err := io.Copy(destination, source)
+        _, err = io.Copy(destination, source)
 	
 	fi, err = os.Stat(path)
 	if err != nil {
