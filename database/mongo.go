@@ -124,7 +124,7 @@ var notamToPrint = mgdb.GetActiveNotamsData()
 
 	formatNotamFile(path)
 	
-	fi, err := f.Stat(path)
+	fi, err := os.Stat(path)
 	if err != nil {
 		log.Fatal(err)
 	}
