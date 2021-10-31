@@ -96,7 +96,6 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 // Write all the Active Notams in the indicated file.
 // The file is Gzipped.
 func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
-	// Getting absolute path of hello.go
 	abs, err1 := filepath.Abs(path)
 	// Printing if there is no error
 	if err1 == nil {
@@ -109,8 +108,7 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	name := filepath.Base(path)
 	tmpFile := filepath.Join(os.TempDir(), name)
  
-	// Getting absolute path of hello.go
-	abs, err1 = filepath.Abs(path)
+	abs, err1 = filepath.Abs(tmpFile)
 	// Printing if there is no error
 	if err1 == nil {
 		fmt.Println("Absolute path is:", abs)
@@ -132,9 +130,9 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	//writer := gzip.NewWriter(file)
 	//defer writer.Close()
 	encoder := json.NewEncoder(file)
-	defer file.Close()
 	encoder.Encode(notamToPrint)
-
+	defer file.Close()
+	
 	formatNotamFile(tmpFile)
 	
 	fi, err := os.Stat(tmpFile)
