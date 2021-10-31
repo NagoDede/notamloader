@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
-
+"path/filepath"
 	"github.com/NagoDede/notamloader/notam"
 	. "github.com/ahmetb/go-linq"
 	"go.mongodb.org/mongo-driver/bson"
@@ -95,7 +95,19 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 // Write all the Active Notams in the indicated file.
 // The file is Gzipped.
 func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
-	var notamToPrint = mgdb.GetActiveNotamsData()
+	// Getting absolute path of hello.go
+	abs, err1 := filepath.Abs(path)
+
+	// Printing if there is no error
+	if err1 == nil {
+		fmt.Println("Absolute path is:", abs)
+	} else {
+log.Fatal(err1)
+}
+
+
+
+var notamToPrint = mgdb.GetActiveNotamsData()
 
 	os.Remove(path)
 
