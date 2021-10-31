@@ -102,12 +102,10 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	if err1 == nil {
 		fmt.Println("Absolute path is:", abs)
 	} else {
-log.Fatal(err1)
-}
+	log.Fatal(err1)
+	}
 
-
-
-var notamToPrint = mgdb.GetActiveNotamsData()
+	var notamToPrint = mgdb.GetActiveNotamsData()
 	fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
 	os.Remove(path)
 
@@ -122,7 +120,7 @@ var notamToPrint = mgdb.GetActiveNotamsData()
 	defer file.Close()
 	encoder.Encode(notamToPrint)
 
-	formatNotamFile(path)
+	//formatNotamFile(path)
 	
 	fi, err := os.Stat(path)
 	if err != nil {
