@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	_ "log"
+	"regexp"
+	"strings"
+	"time"
 
 	_ "net"
-	_"net/http"
+	_ "net/http"
 	_ "net/http/cookiejar"
 	_ "net/url"
 	"os"
 	_ "reflect"
 	_ "strings"
-	_"sync"
+	_ "sync"
 
 	"github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/notam"
@@ -34,7 +37,56 @@ type DefData struct {
 	RequiredLocation []string        `json:"requiredLocation"`
 }
 
+type FranceNotam struct{
+	*notam.NotamAdvanced
+}
 
+func NewFranceNotam() *FranceNotam{
+	frntm :=  &FranceNotam{ NotamAdvanced: notam.NewNotamAdvanced()}
+	frntm.NotamAdvanced.FillNotamNumber = FillNotamNumber
+	frntm.NotamAdvanced.FillDates = FillDates
+	return frntm
+}
+
+func FillNotamNumber(fr *notam.NotamAdvanced, txt string)  *notam.NotamAdvanced {
+	fr.NotamReference.CountryCode = "FRA"
+	//fr.NotamReference.Icaolocation = fr.NotamCode.Fir
+	fr.NotamReference.Number = txt[5:13]
+	return fr
+}
+
+func FillDates(fr *notam.NotamAdvanced, txt string)  *notam.NotamAdvanced {
+	const ubkspace = "\xC2\xA0"
+	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
+	q := strings.TrimSpace(re.FindString(txt))
+	q = strings.TrimLeft(q, "B)")
+	q = strings.TrimRight(q, "D)")
+	q = strings.TrimRight(q, " \r\n\t")
+	q = strings.TrimRight(q, ubkspace)
+	q = strings.ReplaceAll(q, ubkspace, " ")
+	splitted := strings.Split(q, "C)")
+
+	if len(splitted) == 1 {
+		fr.Status = "Error"
+	} else if len(splitted) == 2 {
+		sDateFrom := splitted[0]
+		sDateFrom = strings.ReplaceAll(sDateFrom,"  ", " ")
+		sDateFrom = strings.Trim(sDateFrom, " \n\r\t")
+		//2021 Jan 27 23:59 
+		//--> 2006 Jan 02 15:04
+		dateFrom, _ := time.Parse("2006 Jan 02 15:04", sDateFrom)
+		fr.FromDate = dateFrom.Format("0601021504")
+		sDateTo := splitted[1]
+		sDateTo = strings.ReplaceAll(sDateTo,"  ", " ")
+		sDateTo = strings.Trim(sDateTo[0:18], " \n\r\t")
+		dateTo, _ := time.Parse("2006 Jan 02 15:04", sDateTo)
+		fr.ToDate = dateTo.Format("0601021504")
+	} else {
+		fr.Status = "Error"
+	}
+	return fr
+
+}
 
 var mongoClient *database.Mongodb
 var aisClient *webclient.AisWebClient
@@ -54,20 +106,26 @@ func (def *DefData) Process() {
 	fmt.Println("Connected to AIS France")
 
 	//Will contain all the retrieved Notams
-	notams := notam.NewNotamList() 	
+	//notams := notam.NewNotamList()
+	ntm := NewFranceNotam()
+	//ntm.FillNotamFromText("dede")
 
 	//Initiate a new mongo db interface
 	mongoClient = database.NewMongoDb(def.CountryCode)
 	aisClient = webclient.NewAisWebClient()
 
-	def.RetrieveAllNotams()
+	//def.RetrieveAllNotams()
+	txt := "LFFA-F0092/21 \n Q) LFXX/QAFXX/IV/NBO/ E/000/999/4412N00040E460\nA) LFBB LFEE LFFF LFMM LFRR \n	B) 2021 Jan 27  23:59 C) 2021 Dec 31  23:59\nE) AFIN DE GARANTIR UNE LIVRAISON SURE ET RAPIDE DES VACCINS COVID-19,	LES EXPLOITANTS D AERONEFS TRANSPORTANT CES VACCINS DOIVENT DEMANDER	L APPROBATION DE L EXEMPTION DES MESURES ATFM A LA DGAC POUR CHAQUE	 VOL JUGE CRITIQUE SELON LA PROCEDURE DECRITE DANS L AIP FRANCE	 1.9.3.3.1. APRES APPROBATION, STS/ATFMX ET RMK/VACCINE DOIVENT ETRE	 INSERES DANS LA CASE 18 DU PLAN DE VOL. 	LES EXPLOITANTS D AERONEFS TRANSPORTANT REGULIEREMENT DES VACCINS	COVID-19 PEUVENT DEMANDER L APPROBATION A L AVANCE POUR TOUS LES VOLS	CONCERNES."
+	ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, txt)
+	fmt.Printf("notam: %+v \n", ntm.Notam)
 
-	fmt.Printf("Current NOTAMs: %d \n", len(notams.Data))
-	//Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
-	canceledNotams := mongoClient.IdentifyCanceledNotams(notams.Data)
-	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
-	mongoClient.SetCanceledNotamList(canceledNotams)
-	mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
+
+//	fmt.Printf("Current NOTAMs: %d \n", len(notams.Data))
+	// //Once all the NOTAM havebeen identified, identify the deleted ones and set them in the db.
+	// canceledNotams := mongoClient.IdentifyCanceledNotams(notams.Data)
+	// fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
+	// mongoClient.SetCanceledNotamList(canceledNotams)
+	// mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
 }
 
 /*
