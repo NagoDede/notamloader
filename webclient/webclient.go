@@ -54,8 +54,15 @@ func StructToMap(i interface{}) (values url.Values) {
 	typ := iVal.Type()
 	for i := 0; i < iVal.NumField(); i++ {
 		
-		values.Set(typ.Field(i).Name, fmt.Sprint(iVal.Field(i)))
-
+		//values.Set(typ.Field(i).Name, fmt.Sprint(iVal.Field(i)))
+		
+		fi := typ.Field(i)
+		name := fi.Tag.Get("json")
+		if name=="" {
+			name = fi.Name
+		}
+		
+		values.Set(name, fmt.Sprint(iVal.Field(i)))
 		//TODO compléter si Field est un array
 	}
 	return

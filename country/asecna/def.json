@@ -1,0 +1,12 @@
+{
+ "country": "Asecna",
+ "countryCode": "ASECNA",
+ "logoutpage": "",
+ "notamRequestUrl": "https://ais.asecna.aero/en/ntm/notam.php",
+ "__notes__":"Contains all the airports ICAO codes",
+ "codeListPath":"",
+ "__notes_":"The following NOTAM location indicators are extracted from the AIS France. It contains dedicated NOTAM Location indicators",
+ "__notes_":"No worries if a code appears, tool will keep only one",
+ "requiredLocation":["DRRR","FTTT","GOOO","FCCC", "FMMM"]
+
+}

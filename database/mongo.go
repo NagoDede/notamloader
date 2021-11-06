@@ -200,6 +200,8 @@ func (mgdb *Mongodb) retrieveActiveNotams() map[string]*notam.NotamStatus{
 		log.Fatal(err)
 	}
 
+	//Retrive the data from the databse.
+	//Use a structure to catch the Id and other references
 	type localNotam struct{
 		Id string `bson:"_id,omitempty"`
 		notam.NotamReference
@@ -209,17 +211,13 @@ func (mgdb *Mongodb) retrieveActiveNotams() map[string]*notam.NotamStatus{
 	var notams = make(map[string]*notam.NotamStatus)//[]notam.NotamStatus
 	info := &localNotam{}
 	for myCursor.Next(context.Background()) {
-
 		myCursor.Decode(info)
-
 		notams[info.Id] = &(notam.NotamStatus{NotamReference: info.NotamReference, Status: info.Status})
 	}
 
 	// if err = myCursor.All(context.Background(), &notams); err != nil {
 	//  	log.Fatal(err)
 	// }
-
-
 	return notams
 }
 
@@ -248,7 +246,7 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamR
 	}
 
 
-//	From(mgdb.ActiveNotams).Where(func(c interface{}) bool {
+	//	From(mgdb.ActiveNotams).Where(func(c interface{}) bool {
 	// 	for _, ntm := range currentNotams {
 	// 		// if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
 	// 		// 	ntm.Number == c.(notam.NotamStatus).Number {
