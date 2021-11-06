@@ -69,7 +69,9 @@ var mongoClient *database.Mongodb
 // Then, it initiates the http and mongodb interfaces.
 // Once achieved, it interrogates the web form by providing the location ICAO code to
 // the webform to identify the reference list of the relevant NOTAM.
-func (jpd *JpData) Process() {
+func (jpd *JpData) Process(wg *sync.WaitGroup) {
+
+	defer wg.Done()
 
 	//retrieve the configuration data from the json file
 	jpd.loadJsonFile("./country/japan/def.json")
