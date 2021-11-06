@@ -68,7 +68,7 @@ func (def *DefData) performCompleteRequest(nbNotams int, initForm *FormRequest, 
 			log.Fatalln(err)
 		}
 		notamsText := extractNotams(resp.Body)
-		allNotams.notamList = createNotamsFromText(notamsText, allNotams.notamList)
+		allNotams = createNotamsFromText(notamsText, allNotams)
 		count = count + len(notamsText)
 		fmt.Printf("notams: %d / %d total notams: %d \n", count, nbNotams, len(allNotams.notamList))
 	}
@@ -83,12 +83,16 @@ func (def *DefData) performCompleteRequest(nbNotams int, initForm *FormRequest, 
 	return allNotams
 }
 
-func createNotamsFromText(notamsText []string, allNotams []*FranceNotam) []*FranceNotam {
+func createNotamsFromText(notamsText []string, allNotams *FranceNotamList) *FranceNotamList {
 	//notams := []*FranceNotam{}
 	for _, ntmTxt := range notamsText {
 		ntm := NewFranceNotam()
 		ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, ntmTxt)
-		allNotams = append(allNotams, ntm)
+		_, ok :=  allNotams.notamList[ntm.Id]
+		if (!ok) {
+			allNotams.notamList[ntm.Id] = ntm
+		}
+		//allNotams = append(allNotams, ntm)
 	}
 	return allNotams
 }

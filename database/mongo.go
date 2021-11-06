@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/NagoDede/notamloader/notam"
-	. "github.com/ahmetb/go-linq"
+	_ "github.com/ahmetb/go-linq"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -21,7 +21,7 @@ import (
 
 type Mongodb struct {
 	client       *mongo.Client
-	activeNotams *[]notam.NotamStatus
+	ActiveNotams map[string]*notam.NotamStatus//*[]notam.NotamStatus
 	CountryCode  string
 }
 
@@ -35,6 +35,7 @@ func NewMongoDb(countrycode string) *Mongodb {
 	ctx = context.TODO()
 	clientmg := getClient()
 	mgdb := &Mongodb{client: clientmg, CountryCode: countrycode}
+	mgdb.ActiveNotams = make(map[string]*notam.NotamStatus)
 	mgdb.UpdateActiveNotamsFromDb()
 	return mgdb
 }
@@ -75,10 +76,10 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 	}
 }
 
-func (mgdb *Mongodb) UpdateActiveNotamsFromDb() *[]notam.NotamStatus {
-	mgdb.activeNotams = mgdb.retrieveActiveNotams()
-	fmt.Printf("\t Retrieve %d active NOTAM in the database \n", len(*mgdb.activeNotams))
-	return mgdb.activeNotams
+func (mgdb *Mongodb) UpdateActiveNotamsFromDb() map[string]*notam.NotamStatus {
+	mgdb.ActiveNotams = mgdb.retrieveActiveNotams()
+	fmt.Printf("\t Retrieve %d active NOTAM in the database \n", len(mgdb.ActiveNotams))
+	return mgdb.ActiveNotams
 }
 
 // Retrieve the Operable Notams in the database
@@ -187,7 +188,7 @@ func formatNotamFile(path string) {
 }
 
 //
-func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
+func (mgdb *Mongodb) retrieveActiveNotams() map[string]*notam.NotamStatus{
 	filter := bson.D{{"status", "Operable"}, {"notamreference.countrycode", mgdb.CountryCode}}
 	projection := bson.D{
 		{"notamreference", 1},
@@ -199,20 +200,36 @@ func (mgdb *Mongodb) retrieveActiveNotams() *[]notam.NotamStatus {
 		log.Fatal(err)
 	}
 
-	var notams []notam.NotamStatus
-	if err = myCursor.All(context.Background(), &notams); err != nil {
-		log.Fatal(err)
+	type localNotam struct{
+		Id string `bson:"_id,omitempty"`
+		notam.NotamReference
+		Status string	`json:"status"`
 	}
-	return &notams
+
+	var notams = make(map[string]*notam.NotamStatus)//[]notam.NotamStatus
+	info := &localNotam{}
+	for myCursor.Next(context.Background()) {
+
+		myCursor.Decode(info)
+
+		notams[info.Id] = &(notam.NotamStatus{NotamReference: info.NotamReference, Status: info.Status})
+	}
+
+	// if err = myCursor.All(context.Background(), &notams); err != nil {
+	//  	log.Fatal(err)
+	// }
+
+
+	return notams
 }
 
 func (mgdb Mongodb) IsOldNotam(key string) bool {
 	//	IsOldNotam(notam_location string, notam_number string)
-	if *mgdb.activeNotams == nil {
+	if mgdb.ActiveNotams == nil {
 		return false
 	}
 
-	for _, ntmref := range *mgdb.activeNotams {
+	for _, ntmref := range mgdb.ActiveNotams {
 		if ntmref.GetKey() == key {
 			return true
 		}
@@ -223,20 +240,28 @@ func (mgdb Mongodb) IsOldNotam(key string) bool {
 func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamReference) *[]notam.NotamStatus {
 	var canceledNotams []notam.NotamStatus
 
-	From(*mgdb.activeNotams).Where(func(c interface{}) bool {
-		for _, ntm := range currentNotams {
-			// if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
-			// 	ntm.Number == c.(notam.NotamStatus).Number {
-			// 	return false
-			// }
-			var ntmRef notam.NotamStatus
-			ntmRef = c.(notam.NotamStatus)
-			if ntm.GetKey() == ntmRef.GetKey() {
-				return false
-			}
+	for activeKey, active := range mgdb.ActiveNotams{
+		_, inCurrent := currentNotams[activeKey]
+		if !inCurrent {
+			canceledNotams = append(canceledNotams, *active)
 		}
-		return true
-	}).ToSlice(&canceledNotams)
+	}
+
+
+//	From(mgdb.ActiveNotams).Where(func(c interface{}) bool {
+	// 	for _, ntm := range currentNotams {
+	// 		// if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
+	// 		// 	ntm.Number == c.(notam.NotamStatus).Number {
+	// 		// 	return false
+	// 		// }
+	// 		var ntmRef notam.NotamStatus
+	// 		ntmRef = c.(notam.NotamStatus)
+	// 		if ntm.GetKey() == ntmRef.GetKey() {
+	// 			return false
+	// 		}
+	// 	}
+	// 	return true
+	// }).ToSlice(&canceledNotams)
 
 	return &canceledNotams
 }
