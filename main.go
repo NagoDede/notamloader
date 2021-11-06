@@ -4,14 +4,14 @@ import (
 	_ "fmt"
 
 	"github.com/NagoDede/notamloader/country/france"
-	_ "github.com/NagoDede/notamloader/country/japan"
+	 "github.com/NagoDede/notamloader/country/japan"
 )
 
 func main() {
 
 	franceNotamProcessor := france.DefData{}
-	franceNotamProcessor.Process()
+	go franceNotamProcessor.Process()
 
-	//japanNotamProcessor := japan.JpData{}
-	// japanNotamProcessor.Process()
+	japanNotamProcessor := japan.JpData{}
+	 japanNotamProcessor.Process()
 }
