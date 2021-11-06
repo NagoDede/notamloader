@@ -1,6 +1,6 @@
 {
  "country": "France",
- "countryCode": "FR",
+ "countryCode": "FRA",
  "logoutpage": "",
  "notamRequestUrl": "http://notamweb.aviation-civile.gouv.fr/Script/IHM/Bul_FIR.php?Langue=EN",
  "__notes__":"Contains all the airports ICAO codes",

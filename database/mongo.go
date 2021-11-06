@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
-	"path/filepath"
-	"io"
+
 	"github.com/NagoDede/notamloader/notam"
 	. "github.com/ahmetb/go-linq"
 	"go.mongodb.org/mongo-driver/bson"
@@ -67,7 +68,9 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 			log.Fatal(err)
 		} else {
 			fmt.Printf("NOTAM: %s in database \n", notam.Id)
-			mgdb.SetOperable(notam)
+			if notam.Status != "Operable" {
+				mgdb.SetOperable(notam)
+			}
 		}
 	}
 }
@@ -101,25 +104,23 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 	if err1 == nil {
 		fmt.Println("Absolute path is:", abs)
 	} else {
-	log.Fatal(err1)
+		log.Fatal(err1)
 	}
-	
-	
+
 	name := filepath.Base(path)
 	tmpFile := filepath.Join(os.TempDir(), name)
- 
+
 	abs, err1 = filepath.Abs(tmpFile)
 	// Printing if there is no error
 	if err1 == nil {
 		fmt.Println("Absolute path is:", abs)
 	} else {
-	log.Fatal(err1)
+		log.Fatal(err1)
 	}
-
 
 	var notamToPrint = mgdb.GetActiveNotamsData()
 	fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
-	
+
 	os.Remove(tmpFile)
 
 	file, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE, os.ModePerm)
@@ -135,36 +136,36 @@ func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
 		log.Fatal(err)
 	}
 	file.Close()
-	
+
 	formatNotamFile(tmpFile)
-	
+
 	fi, err := os.Stat(tmpFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf("The file is %d bytes long \n", fi.Size())
-	
-	source, err := os.Open(tmpFile)
-        if err != nil {
-		log.Fatal(err)
-        }
-        defer source.Close()
 
-        destination, err := os.Create(path)
-        if err != nil {
-                log.Fatal(err)
-        }
-        defer destination.Close()
-        _, err = io.Copy(destination, source)
-	
+	source, err := os.Open(tmpFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer source.Close()
+
+	destination, err := os.Create(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer destination.Close()
+	_, err = io.Copy(destination, source)
+
 	fi, err = os.Stat(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Printf("The copied file is %d bytes long \n", fi.Size())
-	
+
 }
 
 func formatNotamFile(path string) {

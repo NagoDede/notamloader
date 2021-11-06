@@ -34,11 +34,11 @@ type FormRequest struct{
 	FIR_Tab_Fir[10]	string//: LFRR
 }
 
-func NewFormRequest(icaoCode string, sDate string, sHour string) *FormRequest{
+func NewFormResumeRequest(icaoCode string, sDate string, sHour string) *FormRequest{
 	return &FormRequest{
 		Resultat: true,
 		Impression: "",
-		ModeAffichage: "COMPLET",
+		ModeAffichage: "RESUME",
 		FIR_Date_DATE: sDate,
 		FIR_Date_HEURE: sHour,
 		FIR_Langue: "EN",
@@ -67,3 +67,20 @@ func (form *FormRequest) Encode() (url.Values) {
 	return values
 }
 
+func (form *FormRequest) EncodeForComplet(notamMin int, count int) (url.Values) {
+	values := webclient.StructToMap(form)
+	values.Add("bImpression","")
+	values.Add("bResultat","true")
+	values.Add("bResaisir","false")
+	values.Del("FIR_Tab_Fir")
+	values.Del("Impression")
+	values.Del("Resultat")
+	for i:=0; i<10; i++ {
+		values.Add("FIR_Tab_Fir[" + strconv.Itoa(i) + "]", form.FIR_Tab_Fir[i])
+	}
+
+	for i:=notamMin; i<(notamMin+count); i++ {
+		values.Add("NOTAM[" + strconv.Itoa(i) + "]", "on")
+	} 
+	return values
+}
