@@ -27,18 +27,20 @@ jobs:
          JAPAN_AIP_USERID: ${{secrets.JAPAN_AIP_USERID }}
       run: ./notamloader
       
-    - name: Commit files
-      run: |
-        git config --local user.email "nagodede@github.com"
-        git config --local user.name "GitHub Action"
-        git add --all 
-        git commit --allow-empty -m "Update NOTAMs" -a
+# Set in comments to avoid to many commits
+#    - name: Commit files
+#      run: |
+#        git config --local user.email "nagodede@github.com"
+#        git config --local user.name "GitHub Action"
+#        git add --all 
+#        git commit --allow-empty -m "Update NOTAMs" -a
         
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
+
+#    - name: Push changes
+#      uses: ad-m/github-push-action@master
+#      with:
+#        github_token: ${{ secrets.GITHUB_TOKEN }}
+#        branch: ${{ github.ref }}
 
     - name: Deploy
       uses: peaceiris/actions-gh-pages@v3
