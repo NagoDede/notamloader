@@ -19,7 +19,9 @@
 		OSM_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 		OSM_ATTRIB = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-
+        NotamsFiles = ['https://raw.githubusercontent.com/NagoDede/notamloader/main/web/notams/japan.json',
+        'https://raw.githubusercontent.com/NagoDede/notamloader/main/web/notams/france.json'
+        ]
 	</script>
 </head>
 <body>
@@ -27,10 +29,10 @@
     <div id="mapid" style="width: 800px; height: 600px;"></div>
 
     <script>
-        function loadJSON(callback) {   
+        function loadJSON(file, callback) {   
             var xobj = new XMLHttpRequest();
                 xobj.overrideMimeType("application/json");
-            xobj.open('GET', 'https://raw.githubusercontent.com/NagoDede/notamloader/main/web/notams/japan.json', true); 
+            xobj.open('GET', file, true); 
             xobj.onreadystatechange = function () {
                 if (xobj.readyState == 4 && xobj.status == "200") {
                     // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
@@ -76,7 +78,11 @@
         }
     
         function init() {
-            loadJSON(function(response) {
+           NotamsFiles.forEach(loadData)
+        }
+
+        function loadData(file) {
+            loadJSON(file, function(response) {
                 var data = JSON.parse(response);
 
                 data.forEach(obj => {
