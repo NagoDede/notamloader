@@ -23,16 +23,12 @@ import (
 	_ "golang.org/x/net/publicsuffix"
 )
 
-var FranceAis DefData
-
 // FrData contains all the information required to connect and retrieve NOTAM from AIS services
 type DefData struct {
-	NotamRequestUrl	string	`json:"notamRequestUrl"`
-	AfsCode      string          `json:"afsCode"`
-	CodeListPath     string          `json:"codeListPath"`
-	RequiredLocation []string        `json:"requiredLocation"`
+	NotamRequestUrl   string              `json:"notamRequestUrl"`
+	CodeListPath      string              `json:"codeListPath"`
+	RequiredLocations map[string][]string `json:"requiredLocation"`
 }
-
 
 var mongoClient *database.Mongodb
 var aisClient *webclient.AisWebClient
@@ -43,27 +39,27 @@ var aisClient *webclient.AisWebClient
 // Once achieved, it interrogates the web form by providing the location ICAO code to
 // the webform to identify the reference list of the relevant NOTAM.
 func (def *DefData) Process(wg *sync.WaitGroup) {
-	
+
 	defer wg.Done()
 
 	//retrieve the configuration data from the json file
 	def.loadJsonFile("./country/asecna/def.json")
 	//Init a the http client thanks tp the configuration data
 	//Initiate a new mongo db interface
-	mongoClient = database.NewMongoDb(def.AfsCode)
 	aisClient = webclient.NewAisWebClient()
-	fmt.Println("Connected to AIS France")
+	fmt.Println("Connected to AIS ASECNA")
 
-	//Will contain all the retrieved Notams
+	for afs := range def.RequiredLocations {
 
-	//retrievedNotamList := 
-	def.RetrieveAllNotams()
-	// realNotamsList := retrievedNotamList.SendToDatabase(mongoClient)
-	// fmt.Printf("Applicable NOTAM: %d \n", len(realNotamsList.Data))
-	// canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
-	// fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
-	// mongoClient.SetCanceledNotamList(canceledNotams)
-	// mongoClient.WriteActiveNotamToFile("./web/notams/asecna.json")
+		mongoClient = database.NewMongoDb(afs)
+		retrievedNotamList := 		def.RetrieveAllNotams(afs)
+		realNotamsList := retrievedNotamList.SendToDatabase(mongoClient)
+		fmt.Printf("Applicable NOTAM: %d \n", len(realNotamsList.Data))
+		 canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
+		 fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
+		 mongoClient.SetCanceledNotamList(canceledNotams)
+		 mongoClient.WriteActiveNotamToFile("./web/notams/asecna_" + afs +".json")
+	}
 
 }
 

@@ -1,6 +1,5 @@
 {
  "country": "Asecna",
- "afsCode": "ASECNA",
  "logoutpage": "",
  "notamRequestUrl": "https://ais.asecna.aero/en/ntm/notam.php",
  "__notes__":"Contains all the airports ICAO codes",
@@ -10,7 +9,7 @@
  "__notes__":"CZQX,TTZP,SOOO,FMMM,NFFF,NTTT,GOOO,DRRR,GOXX,DGFC,FTTT,DIII,FCCC",
   "requiredLocation":{  "FCCCYNYX": ["FCCC", "FTTT"],
                         "GOOOYNYX":["GOOO","DRRR"],
-                        "FMMMYNYX":["FYYY"]
+                        "FMMMYNYX":["FMMM"]
                     }
 }
 

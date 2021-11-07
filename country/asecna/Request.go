@@ -19,20 +19,15 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func (def *DefData) RetrieveAllNotams() *NotamList {
+func (def *DefData) RetrieveAllNotams(afs string) *NotamList {
 	notamList := NewNotamList()
 
 	//allNotams := notamList.notamList//[]*FranceNotam{}
-	for _, icaoCode := range def.RequiredLocation {
-		//There is a server limitation, above 200/300 Notams, webpage is to big and server cannot handle it.
-		//So, in a first step, we request the resume (only notam ID and title)
-		//and in a second step, we perform complete request by batch process.
-		//This capabilities is ensured by the fact we use the same form for the request.
-		//In the complete request, the form is updated with the reference of the requested NOTAMS
-		nbNotams, form := 	def.performRequest(icaoCode)
-		fmt.Printf("%d %d \n", nbNotams, len(form))
-		//notamList = def.performCompleteRequest(nbNotams, form, notamList)
-		//fmt.Println("pause")
+	for _, icaoCode := range def.RequiredLocations[afs] {
+
+		nbNotams, txtNotams := def.performRequest(icaoCode)
+		fmt.Printf("Expected %d Notams - Retrieved Notam Text: %d \n", nbNotams, len(txtNotams))
+		notamList = def.createNotamsFromText(afs, txtNotams, notamList)
 	}
 	return notamList
 }
@@ -43,7 +38,7 @@ func (def *DefData) performRequest(firCode string) (int, []string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	 defer resp.Body.Close()
+	defer resp.Body.Close()
 	//   b, err := io.ReadAll(resp.Body)
 	//   if err != nil {
 	//   	log.Fatalln(err)
@@ -53,9 +48,9 @@ func (def *DefData) performRequest(firCode string) (int, []string) {
 	ntmTxt := &[]string{}
 	nbNotams, ntmTxt := extractNotams(resp.Body, ntmTxt)
 
-	count := 1 
+	count := 1
 	for len(*ntmTxt) < nbNotams {
-		url:=fmt.Sprintf("%s?from=%d",def.NotamRequestUrl, count * form.Maxrows)
+		url := fmt.Sprintf("%s?from=%d", def.NotamRequestUrl, count*form.Maxrows)
 		resp2, err := def.SendRequestToUrl(url)
 
 		if err != nil {
@@ -64,21 +59,21 @@ func (def *DefData) performRequest(firCode string) (int, []string) {
 		defer resp2.Body.Close()
 		nbNotams, ntmTxt = extractNotams(resp2.Body, ntmTxt)
 		count = count + 1
-		fmt.Printf("Page %d Proceed \n")
+		fmt.Printf("Page %d Proceed \n", count)
 	}
 
 	fmt.Printf("Expected NOTAM for %s : %d %d \n", firCode, nbNotams, len(*ntmTxt))
 	return nbNotams, *ntmTxt
 }
 
+func (def *DefData) createNotamsFromText(afs string, notamsText []string, allNotams *NotamList) *NotamList {
 
-func (def *DefData)createNotamsFromText(notamsText []string, allNotams *NotamList) *NotamList {
-	//notams := []*FranceNotam{}
 	for _, ntmTxt := range notamsText {
-		ntm := NewNotam(def.AfsCode)
+		ntm := NewNotam(afs)
 		ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, ntmTxt)
-		_, ok :=  allNotams.notamList[ntm.Id]
-		if (!ok) {
+		ntm.Id = ntm.GetKey()
+		_, ok := allNotams.notamList[ntm.Id]
+		if !ok {
 			allNotams.notamList[ntm.Id] = ntm
 		}
 		//allNotams = append(allNotams, ntm)
@@ -87,7 +82,6 @@ func (def *DefData)createNotamsFromText(notamsText []string, allNotams *NotamLis
 }
 
 func extractNotams(body io.ReadCloser, sNotams *[]string) (int, *[]string) {
-
 
 	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
@@ -99,20 +93,30 @@ func extractNotams(body io.ReadCloser, sNotams *[]string) (int, *[]string) {
 	doc.Find(`p[id*="result"]`).Each(
 		func(index int, a *goquery.Selection) {
 			txt := a.Text()
-			txt = txt[strings.Index(txt,"sur")+4:strings.Index(txt,"réponse")]
-			txt = strings.Trim(txt, " ")
-			nbNotam, _ = strconv.Atoi(txt)
+			if strings.Index(txt, "sur") < 0 || strings.Index(txt, "réponse") < 0 {
+				nbNotam = 0
+			} else {
+				txt = txt[strings.Index(txt, "sur")+4 : strings.Index(txt, "réponse")]
+				txt = strings.Trim(txt, " ")
+				nbNotam, err = strconv.Atoi(txt)
+				if err != nil {
+					nbNotam = 0
+				}
+			}
 		})
 
 	doc.Find(`div[id*="notam"]`).Each(
 		func(index int, a *goquery.Selection) {
 
-				txt := a.Text()
-				txt = txt[strings.Index(txt,"(")+1:]
+			txt := a.Text()
+			if strings.Index(txt, "(") < 0 {
+				*sNotams = append(*sNotams, txt)
+			} else {
+				txt = txt[strings.Index(txt, "(")+1:]
 				txt = strings.Trim(txt, " \n\r\t")
 				txt = txt[:len(txt)-1]
 				*sNotams = append(*sNotams, txt)
-			
+			}
 		})
 
 	return nbNotam, sNotams
@@ -129,7 +133,7 @@ func extractNumberOfNotams(body io.ReadCloser) int {
 	doc.Find(`p[id*="result"]`).Each(
 		func(index int, a *goquery.Selection) {
 			txt := a.Text()
-			txt = txt[strings.Index(txt,"sur")+4:strings.Index(txt,"réponse")]
+			txt = txt[strings.Index(txt, "sur")+4 : strings.Index(txt, "réponse")]
 			txt = strings.Trim(txt, " ")
 			nbNotam, _ = strconv.Atoi(txt)
 		})

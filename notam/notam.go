@@ -31,6 +31,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/NagoDede/notamloader/webclient"
 )
 
 type Notam struct {
@@ -90,7 +92,7 @@ func (nr *NotamReference) GetKey() string {
 	if nr.FirCode != "" {
 		return nr.AfsCode + "-" + nr.FirCode + "-" + nr.Number
 	}
-	
+
 	if nr.Icaolocation != "" {
 		return nr.AfsCode + "-" + nr.Icaolocation + "-" + nr.Number
 	}
@@ -169,7 +171,7 @@ func FillNotamNumber(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 		end = len(txt)
 	}
 	ntm.NotamReference.Number = strings.Trim(txt[strings.Index(txt, "-")+1:end], " \r\n\t")
-	
+
 	return ntm
 }
 
@@ -192,10 +194,15 @@ func FillNotamNumber(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 //	999 Altitude Sup
 // 	4932N00005E005 Coordinates and influence radius
 func FillNotamCode(ntm *NotamAdvanced, txt string) *NotamAdvanced {
-	re := regexp.MustCompile("(?s)Q\\).*?\n") //the Q) parameters is defined on a single line
+	re := regexp.MustCompile("(?s)Q\\).*?(\n|A\\))") //the Q) parameters is defined on a single line or up to the next field A)
 	q := strings.TrimSpace(re.FindString(txt))
+	q = strings.ReplaceAll(q, "Q)", "")
+	q = strings.ReplaceAll(q, "A)", "")
+	//clean possible spaces
+	for strings.Index(q, " ") > 0 {
+		q = strings.ReplaceAll(q, " ", "")
+	}
 	q = strings.TrimRight(q, " \r\n") //remove all the unecessary items on the right
-	q = strings.TrimLeft(q, "Q)")     //and on the left
 	splitted := strings.Split(q, "/") //the code separation is a /
 
 	ntm.NotamCode.Fir = splitted[0]
@@ -207,13 +214,24 @@ func FillNotamCode(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	ntm.NotamCode.LowerLimit = splitted[5]
 	ntm.NotamCode.UpperLimit = splitted[6]
 	ntm.NotamCode.Coordinates = splitted[7]
+
 	ntm.FillGeoData()
 	return ntm
 }
 
 func (notam *Notam) FillGeoData() *Notam {
-	deglat, _ := strconv.Atoi(notam.NotamCode.Coordinates[0:2])
-	minlat, _ := strconv.Atoi(notam.NotamCode.Coordinates[2:4])
+	//if there is no coordinate, unable to compute the geodata, so return the same object
+	if notam.NotamCode.Coordinates == "" {
+		return notam
+	}
+	deglat, err := strconv.Atoi(notam.NotamCode.Coordinates[0:2])
+	if err != nil {
+		deglat = 0.0
+	}
+	minlat, err := strconv.Atoi(notam.NotamCode.Coordinates[2:4])
+	if err != nil {
+		minlat = 0.0
+	}
 	hemisphere := notam.NotamCode.Coordinates[4]
 
 	notam.GeoData.Latitude = float64(deglat) + float64(minlat)/60.0
@@ -221,8 +239,14 @@ func (notam *Notam) FillGeoData() *Notam {
 		notam.GeoData.Latitude = -notam.GeoData.Latitude
 	}
 
-	deglong, _ := strconv.Atoi(notam.NotamCode.Coordinates[5:8])
-	minlong, _ := strconv.Atoi(notam.NotamCode.Coordinates[8:10])
+	deglong, err := strconv.Atoi(notam.NotamCode.Coordinates[5:8])
+	if err != nil {
+		deglong = 0.0
+	}
+	minlong, err := strconv.Atoi(notam.NotamCode.Coordinates[8:10])
+	if err != nil {
+		minlong = 0.0
+	}
 	side := notam.NotamCode.Coordinates[10]
 
 	notam.GeoData.Longitude = float64(deglong) + float64(minlong)/60.0
@@ -231,7 +255,10 @@ func (notam *Notam) FillGeoData() *Notam {
 	}
 
 	if len(notam.NotamCode.Coordinates) > 11 {
-		notam.GeoData.Radius, _ = strconv.Atoi(notam.NotamCode.Coordinates[11:14])
+		notam.GeoData.Radius, err = strconv.Atoi(notam.NotamCode.Coordinates[11:14])
+		if err != nil {
+			notam.GeoData.Radius = 1
+		}
 	}
 	return notam
 }
@@ -248,6 +275,28 @@ func FillIcaoLocation(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	q = strings.ReplaceAll(q, ubkspace, " ")
 	q = strings.ReplaceAll(q, "  ", " ")
 	ntm.Icaolocation = q
+
+	//if the location was not set previously, now we have at least an airpot info, so, we can perform a request
+	if ntm.NotamCode.Coordinates == "" {
+		fmt.Println("!! Retrieve Airport Position data through airport-data.com for " + ntm.Icaolocation)
+		aptData := webclient.GetAirportData(ntm.Icaolocation)
+		if aptData.Status == 200 {
+			latitude, err := strconv.ParseFloat(aptData.Latitude, 64)
+			if err != nil {
+				fmt.Printf("Unable to retrieve and convert Latitude %s for %s \n", aptData.Latitude, ntm.Icaolocation)
+			} else 			{
+				ntm.GeoData.Latitude = latitude
+			}
+
+			longitude, err := strconv.ParseFloat(aptData.Longitude, 64)
+			if err != nil {
+				fmt.Printf("Unable to retrieve and convert Longitude %s for %s \n", aptData.Longitude, ntm.Icaolocation)
+			} else 			{
+				ntm.GeoData.Longitude = longitude
+			}
+		}
+	}
+
 	return ntm
 }
 
