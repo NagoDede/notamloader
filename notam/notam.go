@@ -82,16 +82,21 @@ type NotamReference struct {
 	Number       string `json:"number"`
 	Icaolocation string `json:"icaolocation"`
 	AfsCode      string `json:"afscode"`
+	FirCode      string `json:"fircode"`
 }
 
 func (nr *NotamReference) GetKey() string {
 	//return nr.CountryCode + "-" + nr.Icaolocation + "-" + nr.Number
+	if nr.FirCode != "" {
+		return nr.AfsCode + "-" + nr.FirCode + "-" + nr.Number
+	}
+	
 	if nr.Icaolocation != "" {
 		return nr.AfsCode + "-" + nr.Icaolocation + "-" + nr.Number
-	} else {
-
-		return nr.AfsCode + "-" + nr.Number
 	}
+
+	return nr.AfsCode + "-" + nr.Number
+
 }
 
 type GeoData struct {
@@ -181,6 +186,7 @@ func FillNotamCode(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	splitted := strings.Split(q, "/") //the code separation is a /
 
 	ntm.NotamCode.Fir = splitted[0]
+	ntm.NotamReference.FirCode = ntm.NotamCode.Fir
 	ntm.NotamCode.Code = splitted[1]
 	ntm.NotamCode.Traffic = splitted[2]
 	ntm.NotamCode.Purpose = splitted[3]
@@ -283,8 +289,8 @@ func FillLowerLimit(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	q := strings.TrimSpace(re.FindString(txt))
 	q = strings.TrimLeft(q, "F)")
 	if len(q) > 3 {
-		q = q[0 : len(q)-2]
-		q = strings.TrimRight(q, ubkspace+" \r\n")
+		q = q[0 : len(q)-2] //remove the G)
+		q = strings.Trim(q, ubkspace+" \r\n")
 		ntm.LowerLimit = q
 	} else {
 		ntm.LowerLimit = ""
@@ -295,12 +301,11 @@ func FillLowerLimit(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 func FillUpperLimit(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by A) and clean it.
-	re := regexp.MustCompile("(?s)G\\).*?\\)")
+	re := regexp.MustCompile("(?s)G\\).*?(\\)|\\z)")
 	q := strings.TrimSpace(re.FindString(txt))
 	q = strings.TrimLeft(q, "G)")
 	if len(q) > 3 {
-		q = q[0 : len(q)-1]
-		q = strings.TrimRight(q, ubkspace+" \r\n")
+		q = strings.Trim(q, ubkspace+" \r\n\t")
 		ntm.UpperLimit = q
 	} else {
 		ntm.UpperLimit = ""

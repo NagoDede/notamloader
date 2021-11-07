@@ -7,6 +7,11 @@
  "codeListPath":"",
  "__notes_":"The following NOTAM location indicators are extracted from the AIS France. It contains dedicated NOTAM Location indicators",
  "__notes_":"No worries if a code appears, tool will keep only one",
- "requiredLocation":["DRRR","FTTT","GOOO","FCCC", "FMMM"]
-
+ "__notes__":"CZQX,TTZP,SOOO,FMMM,NFFF,NTTT,GOOO,DRRR,GOXX,DGFC,FTTT,DIII,FCCC",
+  "requiredLocation":{  "FCCCYNYX": ["FCCC", "FTTT"],
+                        "GOOOYNYX":["GOOO","DRRR"],
+                        "FMMMYNYX":["FYYY"]
+                    }
 }
+
+

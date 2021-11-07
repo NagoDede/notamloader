@@ -40,7 +40,6 @@ func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 
 	//For france, the airport code is not used
 	//fr.NotamReference.Icaolocation = txt[:strings.Index(txt, "-")]
-	fr.NotamReference.Icaolocation = fr.NotamCode.Fir
 	end := strings.Index(txt, " ")
 	if strings.Index(txt, "\n") < end {
 		end = strings.Index(txt, "\n")
@@ -49,7 +48,7 @@ func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 		end = len(txt)
 	}
 	fr.NotamReference.Number = strings.Trim(txt[strings.Index(txt, "-")+1:end], " \r\n\t")
-	fr.Id = fr.GetKey()
+	
 	return fr
 }
 
