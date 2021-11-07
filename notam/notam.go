@@ -156,7 +156,20 @@ func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
 }
 
 func FillNotamNumber(ntm *NotamAdvanced, txt string) *NotamAdvanced {
-	fmt.Println("Coucou from Notam" + txt)
+	txt = txt[:strings.Index(txt, "Q)")+6] //keep text up to the QCode to get the Fir
+	txt = strings.Trim(txt, " \r\n\t")
+
+	//For france, the airport code is not used
+	//fr.NotamReference.Icaolocation = txt[:strings.Index(txt, "-")]
+	end := strings.Index(txt, " ")
+	if strings.Index(txt, "\n") < end {
+		end = strings.Index(txt, "\n")
+	}
+	if end <= 0 {
+		end = len(txt)
+	}
+	ntm.NotamReference.Number = strings.Trim(txt[strings.Index(txt, "-")+1:end], " \r\n\t")
+	
 	return ntm
 }
 
