@@ -325,7 +325,7 @@ func FillDates(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 func FillText(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by A) and clean it.
-	re := regexp.MustCompile("(?s)E\\).*?(F\\)|G\\)|.*$)")
+	re := regexp.MustCompile("(?s)E\\).*?(F\\)|G\\)|\\)|.*$)")
 	q := strings.TrimSpace(re.FindString(txt))
 	q = strings.TrimLeft(q, "E)")
 	if len(q) < 2 {
