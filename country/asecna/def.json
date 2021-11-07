@@ -1,6 +1,6 @@
 {
  "country": "Asecna",
- "countryCode": "ASECNA",
+ "afsCode": "ASECNA",
  "logoutpage": "",
  "notamRequestUrl": "https://ais.asecna.aero/en/ntm/notam.php",
  "__notes__":"Contains all the airports ICAO codes",

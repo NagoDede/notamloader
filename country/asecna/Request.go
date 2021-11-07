@@ -72,10 +72,10 @@ func (def *DefData) performRequest(firCode string) (int, []string) {
 }
 
 
-func createNotamsFromText(notamsText []string, allNotams *NotamList) *NotamList {
+func (def *DefData)createNotamsFromText(notamsText []string, allNotams *NotamList) *NotamList {
 	//notams := []*FranceNotam{}
 	for _, ntmTxt := range notamsText {
-		ntm := NewNotam()
+		ntm := NewNotam(def.AfsCode)
 		ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, ntmTxt)
 		_, ok :=  allNotams.notamList[ntm.Id]
 		if (!ok) {

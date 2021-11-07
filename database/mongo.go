@@ -22,7 +22,7 @@ import (
 type Mongodb struct {
 	client       *mongo.Client
 	ActiveNotams map[string]*notam.NotamStatus//*[]notam.NotamStatus
-	CountryCode  string
+	AfsCode  string
 }
 
 var client *mongo.Client
@@ -30,11 +30,11 @@ var notamCollection *mongo.Collection
 
 var ctx = context.TODO()
 
-func NewMongoDb(countrycode string) *Mongodb {
+func NewMongoDb(afs string) *Mongodb {
 	fmt.Println("Connect to NOTAM database")
 	ctx = context.TODO()
 	clientmg := getClient()
-	mgdb := &Mongodb{client: clientmg, CountryCode: countrycode}
+	mgdb := &Mongodb{client: clientmg, AfsCode: afs}
 	mgdb.ActiveNotams = make(map[string]*notam.NotamStatus)
 	mgdb.UpdateActiveNotamsFromDb()
 	return mgdb
@@ -84,7 +84,7 @@ func (mgdb *Mongodb) UpdateActiveNotamsFromDb() map[string]*notam.NotamStatus {
 
 // Retrieve the Operable Notams in the database
 func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
-	filter := bson.D{{"status", "Operable"}, {"notamreference.countrycode", mgdb.CountryCode}}
+	filter := bson.D{{"status", "Operable"}, {"notamreference.afscode", mgdb.AfsCode}}
 	myCursor, err := notamCollection.Find(ctx, filter)
 	if err != nil {
 		log.Fatal(err)
@@ -189,7 +189,7 @@ func formatNotamFile(path string) {
 
 //
 func (mgdb *Mongodb) retrieveActiveNotams() map[string]*notam.NotamStatus{
-	filter := bson.D{{"status", "Operable"}, {"notamreference.countrycode", mgdb.CountryCode}}
+	filter := bson.D{{"status", "Operable"}, {"notamreference.afscode", mgdb.AfsCode}}
 	projection := bson.D{
 		{"notamreference", 1},
 		{"status", 1},

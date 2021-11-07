@@ -1,6 +1,6 @@
 {
  "country": "Japan",
- "countryCode": "JPN",
+ "afsCode": "RJAAYNYX",
  "loginPage": "https://aisjapan.mlit.go.jp/LoginAction.do",
  "loginData": {
     "formName": "ais-web",

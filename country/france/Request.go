@@ -19,19 +19,18 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func (def *DefData) RetrieveAllNotams() *FranceNotamList {
+func (def *DefData) RetrieveAllNotams(afs string) *FranceNotamList {
 	notamList := NewFranceNotamList()
 
 	//allNotams := notamList.notamList//[]*FranceNotam{}
-	for _, icaoCode := range def.RequiredLocation {
+	for _, icaoCode := range def.RequiredLocations[afs] {
 		//There is a server limitation, above 200/300 Notams, webpage is to big and server cannot handle it.
 		//So, in a first step, we request the resume (only notam ID and title)
 		//and in a second step, we perform complete request by batch process.
 		//This capabilities is ensured by the fact we use the same form for the request.
 		//In the complete request, the form is updated with the reference of the requested NOTAMS
 		nbNotams, form := def.performResumeRequest(icaoCode)
-		notamList = def.performCompleteRequest(nbNotams, form, notamList)
-		fmt.Println("pause")
+		notamList = def.performCompleteRequest(afs, nbNotams, form, notamList)
 	}
 	return notamList
 }
@@ -55,7 +54,7 @@ func (def *DefData) performResumeRequest(icaoCode string) (int, *FormRequest) {
 
 // Retrieve all the Notams that have been previsouly identified thanks an initial form request.
 // Update the allNotams list with the new Notams and return the new table.
-func (def *DefData) performCompleteRequest(nbNotams int, initForm *FormRequest, allNotams *FranceNotamList) *FranceNotamList {
+func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *FormRequest, allNotams *FranceNotamList) *FranceNotamList {
 	fentier, _ := math.Modf(float64(nbNotams) / 200.0)
 	entier := int(fentier)
 	count := 0
@@ -68,7 +67,7 @@ func (def *DefData) performCompleteRequest(nbNotams int, initForm *FormRequest, 
 			log.Fatalln(err)
 		}
 		notamsText := extractNotams(resp.Body)
-		allNotams = createNotamsFromText(notamsText, allNotams)
+		allNotams = def.createNotamsFromText(afs, notamsText, allNotams)
 		count = count + len(notamsText)
 		fmt.Printf("notams: %d / %d total notams: %d \n", count, nbNotams, len(allNotams.notamList))
 	}
@@ -83,10 +82,10 @@ func (def *DefData) performCompleteRequest(nbNotams int, initForm *FormRequest, 
 	return allNotams
 }
 
-func createNotamsFromText(notamsText []string, allNotams *FranceNotamList) *FranceNotamList {
+func (def *DefData)createNotamsFromText(afs string,notamsText []string, allNotams *FranceNotamList) *FranceNotamList {
 	//notams := []*FranceNotam{}
 	for _, ntmTxt := range notamsText {
-		ntm := NewFranceNotam()
+		ntm := NewFranceNotam(afs)
 		ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, ntmTxt)
 		_, ok :=  allNotams.notamList[ntm.Id]
 		if (!ok) {

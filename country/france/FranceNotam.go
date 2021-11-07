@@ -25,20 +25,22 @@ func NewFranceNotamList() *FranceNotamList {
 	return list
 }
 
-func NewFranceNotam() *FranceNotam {
+func NewFranceNotam(afs string) *FranceNotam {
 	frntm := &FranceNotam{NotamAdvanced: notam.NewNotamAdvanced()}
 	frntm.NotamAdvanced.FillNotamNumber = FillNotamNumber
 	frntm.NotamAdvanced.FillDates = FillDates
-	frntm.NotamReference.CountryCode = "FRA"
+	frntm.NotamReference.AfsCode = afs
 	return frntm
 }
 
 func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 
-	txt = txt[:strings.Index(txt, "Q)")] //keep text up to the QCode
+	txt = txt[:strings.Index(txt, "Q)")+6] //keep text up to the QCode to get the Fir
 	txt = strings.Trim(txt, " \r\n\t")
 
-	fr.NotamReference.Icaolocation = txt[:strings.Index(txt, "-")]
+	//For france, the airport code is not used
+	//fr.NotamReference.Icaolocation = txt[:strings.Index(txt, "-")]
+	fr.NotamReference.Icaolocation = fr.NotamCode.Fir
 	end := strings.Index(txt, " ")
 	if strings.Index(txt, "\n") < end {
 		end = strings.Index(txt, "\n")
@@ -93,6 +95,7 @@ func (fl *FranceNotamList) SendToDatabase(mg *database.Mongodb) *notam.NotamList
 	notamList := notam.NewNotamList()
 	for i, frNotam := range fl.notamList {
 		frNotam.Status = "Operable"
+		frNotam.Id = frNotam.GetKey()
 
 		//avoid duplicate
 		_, ok := notamList.Data[frNotam.Id]

@@ -46,7 +46,7 @@ func (ndf *JpNotamDispForm) FillInformation(httpClient *webclient.AisWebClient, 
 	
 	if resp != nil {
 		notam := notamText(resp.Body)
-		notam.CountryCode=countryCode
+		notam.AfsCode=countryCode
 		notam.Id = notam.GetKey() //.CountryCode +"/" + notam.Icaolocation + "/" +  notam.NotamReference.Number 
 		defer resp.Body.Close()
 		return notam, nil

@@ -32,6 +32,7 @@ import (
 	"strings"
 	"sync"
 )
+
 type Notam struct {
 	Id string `bson:"_id" json:"id,omitempty"`
 	NotamReference
@@ -50,14 +51,14 @@ type Notam struct {
 
 type NotamAdvanced struct {
 	Notam
-	
-	FillIcaoLocation func (*NotamAdvanced, string) *NotamAdvanced `json:"-"`
-	FillNotamCode func(*NotamAdvanced, string) *NotamAdvanced	`json:"-"`
-	FillNotamNumber func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
-	FillDates  func(*NotamAdvanced, string) *NotamAdvanced  `json:"-"`
-	FillText  func(*NotamAdvanced, string) *NotamAdvanced  `json:"-"`
-	FillLowerLimit  func(*NotamAdvanced, string) *NotamAdvanced  `json:"-"`
-	FillUpperLimit  func(*NotamAdvanced, string) *NotamAdvanced  `json:"-"`
+
+	FillIcaoLocation func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillNotamCode    func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillNotamNumber  func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillDates        func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillText         func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillLowerLimit   func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillUpperLimit   func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
 }
 
 type NotamStatus struct {
@@ -66,12 +67,12 @@ type NotamStatus struct {
 }
 
 type INotam interface {
-	FillNotamNumber(string )
+	FillNotamNumber(string)
 	FillNotamCode(string)
 	FillIcaoLocation(string)
-	FillDates( string)
+	FillDates(string)
 	FillText(string)
-	FillLowerLimit( string)
+	FillLowerLimit(string)
 	FillUpperLimit(string)
 }
 
@@ -80,12 +81,17 @@ type KeyFunc func() string
 type NotamReference struct {
 	Number       string `json:"number"`
 	Icaolocation string `json:"icaolocation"`
-	CountryCode  string `json:"countrycode"`
+	AfsCode      string `json:"afscode"`
 }
 
 func (nr *NotamReference) GetKey() string {
 	//return nr.CountryCode + "-" + nr.Icaolocation + "-" + nr.Number
-	return nr.Icaolocation + "-" + nr.Number
+	if nr.Icaolocation != "" {
+		return nr.AfsCode + "-" + nr.Icaolocation + "-" + nr.Number
+	} else {
+
+		return nr.AfsCode + "-" + nr.Number
+	}
 }
 
 type GeoData struct {
@@ -112,7 +118,7 @@ type NotamList struct {
 
 const ubkspace = "\xC2\xA0"
 
-func NewNotam() *Notam{
+func NewNotam() *Notam {
 	return new(Notam)
 }
 
@@ -128,32 +134,32 @@ func NewNotamAdvanced() *NotamAdvanced {
 	return ntm
 }
 
-func NewNotamList() *NotamList{
+func NewNotamList() *NotamList {
 	return &NotamList{Data: make(map[string]NotamReference)}
 }
 
+func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
 
-func FillNotamFromText(ntm *NotamAdvanced, notamText  string) *NotamAdvanced {
-
-	ntm = ntm.FillNotamNumber( ntm, notamText )
+	ntm = ntm.FillNotamNumber(ntm, notamText)
 	ntm = ntm.FillNotamCode(ntm, notamText)
 	ntm = ntm.FillIcaoLocation(ntm, notamText)
-	ntm = ntm.FillDates( ntm, notamText)
+	ntm = ntm.FillDates(ntm, notamText)
 	ntm = ntm.FillText(ntm, notamText)
-	ntm = ntm.FillLowerLimit( ntm, notamText)
-	ntm = ntm.FillUpperLimit( ntm, notamText)
+	ntm = ntm.FillLowerLimit(ntm, notamText)
+	ntm = ntm.FillUpperLimit(ntm, notamText)
 	return ntm
 }
 
-func FillNotamNumber(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
+func FillNotamNumber(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	fmt.Println("Coucou from Notam" + txt)
 	return ntm
 }
+
 ///Retrieve and extract the codes defined in the Q) parameters
 //Codes are defined by Q)LFFF/QWPLW/IV/M/AW/000/125/4932N00005E005
 //where LFFF is the FIR
-//	QWPLW is QCode, see ICAO DOC 8216. 
-//		Q is an ID. 
+//	QWPLW is QCode, see ICAO DOC 8216.
+//		Q is an ID.
 //		2nd and 3rd letters are related to the NOTAM subject
 // 		4th and 5th letters state or conditions related to the subject.
 // IV is the traffic
@@ -167,11 +173,11 @@ func FillNotamNumber(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
 //	000 Altitude INf
 //	999 Altitude Sup
 // 	4932N00005E005 Coordinates and influence radius
-func FillNotamCode(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
+func FillNotamCode(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	re := regexp.MustCompile("(?s)Q\\).*?\n") //the Q) parameters is defined on a single line
 	q := strings.TrimSpace(re.FindString(txt))
 	q = strings.TrimRight(q, " \r\n") //remove all the unecessary items on the right
-	q = strings.TrimLeft(q, "Q)") //and on the left
+	q = strings.TrimLeft(q, "Q)")     //and on the left
 	splitted := strings.Split(q, "/") //the code separation is a /
 
 	ntm.NotamCode.Fir = splitted[0]
@@ -186,32 +192,32 @@ func FillNotamCode(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
 	return ntm
 }
 
-func (notam *Notam) FillGeoData( ) *Notam  {
+func (notam *Notam) FillGeoData() *Notam {
 	deglat, _ := strconv.Atoi(notam.NotamCode.Coordinates[0:2])
-	minlat, _  := strconv.Atoi(notam.NotamCode.Coordinates[2:4])
+	minlat, _ := strconv.Atoi(notam.NotamCode.Coordinates[2:4])
 	hemisphere := notam.NotamCode.Coordinates[4]
 
-	notam.GeoData.Latitude = float64(deglat) + float64(minlat) / 60.0
+	notam.GeoData.Latitude = float64(deglat) + float64(minlat)/60.0
 	if hemisphere == 'S' {
-		notam.GeoData.Latitude = -notam.GeoData.Latitude 
+		notam.GeoData.Latitude = -notam.GeoData.Latitude
 	}
 
 	deglong, _ := strconv.Atoi(notam.NotamCode.Coordinates[5:8])
-	minlong, _  := strconv.Atoi(notam.NotamCode.Coordinates[8:10])
+	minlong, _ := strconv.Atoi(notam.NotamCode.Coordinates[8:10])
 	side := notam.NotamCode.Coordinates[10]
 
-	notam.GeoData.Longitude = float64(deglong) + float64(minlong) / 60.0
+	notam.GeoData.Longitude = float64(deglong) + float64(minlong)/60.0
 	if side == 'W' {
 		notam.GeoData.Longitude = -notam.GeoData.Longitude
 	}
 
-	if (len(notam.NotamCode.Coordinates) > 11) {
-		notam.GeoData.Radius,_ = strconv.Atoi(notam.NotamCode.Coordinates[11:14])
-	} 
+	if len(notam.NotamCode.Coordinates) > 11 {
+		notam.GeoData.Radius, _ = strconv.Atoi(notam.NotamCode.Coordinates[11:14])
+	}
 	return notam
 }
 
-func FillIcaoLocation(ntm *NotamAdvanced, txt  string) *NotamAdvanced   {
+func FillIcaoLocation(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 
 	//Get the icao location identified by A) and clean it.
 	re := regexp.MustCompile("(?s)A\\).*?B\\)")
@@ -219,14 +225,14 @@ func FillIcaoLocation(ntm *NotamAdvanced, txt  string) *NotamAdvanced   {
 	q = strings.TrimRight(q, "B)")
 	q = strings.TrimRight(q, ubkspace)
 	q = strings.TrimLeft(q, "A)")
-	q = strings.Trim(q," \r\n\t")
+	q = strings.Trim(q, " \r\n\t")
 	q = strings.ReplaceAll(q, ubkspace, " ")
 	q = strings.ReplaceAll(q, "  ", " ")
 	ntm.Icaolocation = q
 	return ntm
 }
 
-func FillDates(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
+func FillDates(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
 	q := strings.TrimSpace(re.FindString(txt))
@@ -248,7 +254,7 @@ func FillDates(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
 	return ntm
 }
 
-func FillText(ntm *NotamAdvanced, txt  string) *NotamAdvanced   {
+func FillText(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by A) and clean it.
 	re := regexp.MustCompile("(?s)E\\).*?(F\\)|G\\)|.*$)")
@@ -270,7 +276,7 @@ func FillText(ntm *NotamAdvanced, txt  string) *NotamAdvanced   {
 	return ntm
 }
 
-func FillLowerLimit(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
+func FillLowerLimit(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by F) and clean it.
 	re := regexp.MustCompile("(?s)F\\).*?G\\)")
@@ -286,7 +292,7 @@ func FillLowerLimit(ntm *NotamAdvanced, txt  string) *NotamAdvanced  {
 	return ntm
 }
 
-func FillUpperLimit(ntm *NotamAdvanced, txt  string) *NotamAdvanced   {
+func FillUpperLimit(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	//Get the icao location identified by A) and clean it.
 	re := regexp.MustCompile("(?s)G\\).*?\\)")

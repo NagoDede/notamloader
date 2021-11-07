@@ -25,11 +25,11 @@ func NewNotamList() *NotamList {
 	return list
 }
 
-func NewNotam() *Notam {
+func NewNotam(afs string) *Notam {
 	frntm := &Notam{NotamAdvanced: notam.NewNotamAdvanced()}
 	frntm.NotamAdvanced.FillNotamNumber = FillNotamNumber
 	frntm.NotamAdvanced.FillDates = FillDates
-	frntm.NotamReference.CountryCode = "FRA"
+	frntm.NotamReference.AfsCode = afs
 	return frntm
 }
 

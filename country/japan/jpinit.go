@@ -38,7 +38,7 @@ type jpLoginFormData struct {
 // JpData contains all the information required to connect and retrieve NOTAM from AIS services
 type JpData struct {
 	WebConfig
-	CountryCode      string          `json:"countryCode"`
+	AfsCode      string          `json:afsCode"`
 	CodeListPath     string          `json:"codeListPath"`
 	codeList         jpCodeFile      //map[string]interface{}
 	LoginData        jpLoginFormData `json:"loginData"`
@@ -87,7 +87,7 @@ func (jpd *JpData) Process(wg *sync.WaitGroup) {
 	notams := notam.NewNotamList() 	// &notam.NotamList{m: make(map[string]NotamReference)}// make(map[string]notam.NotamReference)
 
 	//Initiate a new mongo db interface
-	mongoClient = database.NewMongoDb(jpd.CountryCode)
+	mongoClient = database.NewMongoDb(jpd.AfsCode)
 	rand.Seed(time.Now().UnixNano())
 
 	jpd.notamByAirport(mainHttpClient,notams)
@@ -171,7 +171,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 			continue
 		}
 		//Record the refrence to identify the canceled
-		retrievedNotam := notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location, CountryCode: jpd.CountryCode}
+		retrievedNotam := notam.NotamReference{Number: notamRef.Number(), Icaolocation: notamRef.location, AfsCode: jpd.AfsCode}
 		allRetrievedNotams.RLock()
 		_, exists := allRetrievedNotams.Data[retrievedNotam.GetKey()]
 		allRetrievedNotams.RUnlock()
@@ -193,7 +193,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 				defer wg.Done()
 				fmt.Printf("(New) %s - %s \n", ref.location, ref.Number())
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
-				notam, err := ref.FillInformation(aisClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
+				notam, err := ref.FillInformation(aisClient, jpd.WebConfig.NotamDetailPage, jpd.AfsCode)
 				//no error, log the NOTAM in the Database if it is a new one
 				if err == nil {
 					if len(notam.Text) <= 20 {
@@ -214,7 +214,7 @@ func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 					// jpd.logoutHttpClient(httpClient)
 					// jpd.connectHttpClient(httpClient)
 					jpd.resetHttpClient(aisClient)
-					 notam, err1 := ref.FillInformation(aisClient, jpd.WebConfig.NotamDetailPage, jpd.CountryCode)
+					 notam, err1 := ref.FillInformation(aisClient, jpd.WebConfig.NotamDetailPage, jpd.AfsCode)
 					 if err1 == nil {
 					 	if !mongoClient.IsOldNotam(notam.NotamReference.GetKey()) {
 					 		mongoClient.AddNotam(notam)
