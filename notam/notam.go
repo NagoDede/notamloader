@@ -61,6 +61,7 @@ type NotamAdvanced struct {
 	FillText         func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
 	FillLowerLimit   func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
 	FillUpperLimit   func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+	FillKey			func(*NotamAdvanced) *NotamAdvanced `json:"-"`
 }
 
 type NotamStatus struct {
@@ -76,6 +77,7 @@ type INotam interface {
 	FillText(string)
 	FillLowerLimit(string)
 	FillUpperLimit(string)
+	FillKey()
 }
 
 type KeyFunc func() string
@@ -86,6 +88,8 @@ type NotamReference struct {
 	AfsCode      string `json:"afscode"`
 	FirCode      string `json:"fircode"`
 }
+
+
 
 func (nr *NotamReference) GetKey() string {
 	//return nr.CountryCode + "-" + nr.Icaolocation + "-" + nr.Number
@@ -138,6 +142,7 @@ func NewNotamAdvanced() *NotamAdvanced {
 	ntm.FillNotamNumber = FillNotamNumber
 	ntm.FillText = FillText
 	ntm.FillUpperLimit = FillUpperLimit
+	ntm.FillKey = FillKey
 	return ntm
 }
 
@@ -154,6 +159,12 @@ func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
 	ntm = ntm.FillText(ntm, notamText)
 	ntm = ntm.FillLowerLimit(ntm, notamText)
 	ntm = ntm.FillUpperLimit(ntm, notamText)
+	ntm = ntm.FillKey(ntm)
+	return ntm
+}
+
+func FillKey(ntm *NotamAdvanced) *NotamAdvanced {
+	ntm.Id = ntm.GetKey()
 	return ntm
 }
 
@@ -205,15 +216,15 @@ func FillNotamCode(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	q = strings.TrimRight(q, " \r\n") //remove all the unecessary items on the right
 	splitted := strings.Split(q, "/") //the code separation is a /
 
-	ntm.NotamCode.Fir = splitted[0]
+	ntm.NotamCode.Fir = strings.Trim(splitted[0], " ")
 	ntm.NotamReference.FirCode = ntm.NotamCode.Fir
-	ntm.NotamCode.Code = splitted[1]
-	ntm.NotamCode.Traffic = splitted[2]
-	ntm.NotamCode.Purpose = splitted[3]
-	ntm.NotamCode.Scope = splitted[4]
-	ntm.NotamCode.LowerLimit = splitted[5]
-	ntm.NotamCode.UpperLimit = splitted[6]
-	ntm.NotamCode.Coordinates = splitted[7]
+	ntm.NotamCode.Code = strings.Trim(splitted[1], " ")
+	ntm.NotamCode.Traffic = strings.Trim(splitted[2], " ")
+	ntm.NotamCode.Purpose = strings.Trim(splitted[3], " ")
+	ntm.NotamCode.Scope = strings.Trim(splitted[4], " ")
+	ntm.NotamCode.LowerLimit = strings.Trim(splitted[5], " ")
+	ntm.NotamCode.UpperLimit = strings.Trim(splitted[6], " ")
+	ntm.NotamCode.Coordinates = strings.Trim(splitted[7], " ")
 
 	ntm.FillGeoData()
 	return ntm

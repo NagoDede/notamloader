@@ -228,6 +228,7 @@ func (mgdb Mongodb) IsOldNotam(key string) bool {
 	}
 
 	for _, ntmref := range mgdb.ActiveNotams {
+
 		if ntmref.GetKey() == key {
 			return true
 		}

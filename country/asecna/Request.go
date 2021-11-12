@@ -71,7 +71,7 @@ func (def *DefData) createNotamsFromText(afs string, notamsText []string, allNot
 	for _, ntmTxt := range notamsText {
 		ntm := NewNotam(afs)
 		ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, ntmTxt)
-		ntm.Id = ntm.GetKey()
+		//ntm.Id = ntm.GetKey()
 		_, ok := allNotams.notamList[ntm.Id]
 		if !ok {
 			allNotams.notamList[ntm.Id] = ntm

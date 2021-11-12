@@ -94,7 +94,7 @@ func (fl *FranceNotamList) SendToDatabase(mg *database.Mongodb) *notam.NotamList
 	notamList := notam.NewNotamList()
 	for i, frNotam := range fl.notamList {
 		frNotam.Status = "Operable"
-		frNotam.Id = frNotam.GetKey()
+		//frNotam.Id = frNotam.GetKey()
 
 		//avoid duplicate
 		_, ok := notamList.Data[frNotam.Id]

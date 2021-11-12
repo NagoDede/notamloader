@@ -87,6 +87,7 @@ func (def *DefData)createNotamsFromText(afs string,notamsText []string, allNotam
 	for _, ntmTxt := range notamsText {
 		ntm := NewFranceNotam(afs)
 		ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, ntmTxt)
+
 		_, ok :=  allNotams.notamList[ntm.Id]
 		if (!ok) {
 			allNotams.notamList[ntm.Id] = ntm
