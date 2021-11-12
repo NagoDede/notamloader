@@ -79,8 +79,12 @@ func (form *FormRequest) EncodeForComplet(notamMin int, count int) (url.Values) 
 		values.Add("FIR_Tab_Fir[" + strconv.Itoa(i) + "]", form.FIR_Tab_Fir[i])
 	}
 
+	if count == 0 {
+		values.Add("NOTAM[" + strconv.Itoa(notamMin) + "]", "on")
+	} else {
 	for i:=notamMin; i<(notamMin+count); i++ {
 		values.Add("NOTAM[" + strconv.Itoa(i) + "]", "on")
 	} 
+	}
 	return values
 }

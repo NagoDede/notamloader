@@ -55,13 +55,14 @@ func (def *DefData) performResumeRequest(icaoCode string) (int, *FormRequest) {
 // Retrieve all the Notams that have been previsouly identified thanks an initial form request.
 // Update the allNotams list with the new Notams and return the new table.
 func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *FormRequest, allNotams *FranceNotamList) *FranceNotamList {
-	fentier, _ := math.Modf(float64(nbNotams) / 200.0)
+	const maxreq = 100
+	fentier, _ := math.Modf(float64(nbNotams) / float64(maxreq))
 	entier := int(fentier)
 	count := 0
 
 	// Dedicated function that requests the notams from min_id to max_id
-	individualRequest := func(min_id int, max_id int) {
-		resp, err := def.SendRequest(initForm.EncodeForComplet(min_id, max_id))
+	individualRequest := func(min_id int, cnt int) {
+		resp, err := def.SendRequest(initForm.EncodeForComplet(min_id, cnt))
 		defer resp.Body.Close()
 		if err != nil {
 			log.Fatalln(err)
@@ -73,11 +74,16 @@ func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *F
 	}
 
 	for i := 0; i < entier; i++ {
-		fmt.Printf("Request %d / %d \n", i+1, entier)
-		individualRequest(i*200+1, 200)
+		fmt.Printf("Request %d(%d to %d )/ %d \n", i+1, i*maxreq, (i+1)*maxreq, entier+1)
+		individualRequest(i*maxreq+1, maxreq)
 	}
 
-	individualRequest(entier*200+1, nbNotams-(entier*200))
+	if (nbNotams-(entier*maxreq) >= 0) {
+		fmt.Printf("Final request %d(%d to %d) / %d \n", entier+1, entier*maxreq, nbNotams, entier+1 )
+	individualRequest(entier*maxreq+1, nbNotams-(entier*maxreq))
+	} else {
+		fmt.Printf("!!! Error - performCompleteRequest: %s, nbNotams: %d, entier: %d", afs, nbNotams, entier)
+	}
 
 	return allNotams
 }
