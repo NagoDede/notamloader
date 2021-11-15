@@ -88,9 +88,9 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 			}
 			ntm := NewNotam(afs)
 			ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, text.Raw)
-			_, ok := notamList.notamList[ntm.Id]
+			_, ok := notamList.Data[ntm.Id]
 			if !ok {
-				notamList.notamList[ntm.Id] = ntm
+				notamList.Data[ntm.Id] = ntm
 			}
 		}
 

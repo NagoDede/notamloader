@@ -2,12 +2,13 @@ package canada
 
 import (
 	"fmt"
-	_"log"
-	_"regexp"
+	_ "log"
+	_ "regexp"
 	"strings"
-	_"time"
+	_ "time"
 
 	"github.com/NagoDede/notamloader/database"
+	_ "github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/notam"
 )
 
@@ -15,16 +16,15 @@ type Notam struct {
 	*notam.NotamAdvanced
 }
 
-type NotamList struct {
-	//notamList []*FranceNotam
-	notamList map[string]*Notam
-}
+ type NotamList struct {
+ 	Data map[string]*Notam
+ }
 
-func NewNotamList() *NotamList {
-	list := &(NotamList{})
-	list.notamList = make(map[string]*Notam) // []*FranceNotam{}
-	return list
-}
+ func NewNotamList() *NotamList {
+ 	list := &(NotamList{})
+ 	list.Data = make(map[string]*Notam) // []*FranceNotam{}
+ 	return list
+ }
 
 func NewNotam(afs string) *Notam {
 	frntm := &Notam{NotamAdvanced: notam.NewNotamAdvanced()}
@@ -47,28 +47,27 @@ func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 	return fr
 }
 
+ func (fl *NotamList) SendToDatabase(mg *database.Mongodb) *notam.NotamList {
 
-func (fl *NotamList) SendToDatabase(mg *database.Mongodb) *notam.NotamList {
+ 	notamList := notam.NewNotamList()
+ 	for _, frNotam := range fl.Data {
+ 		frNotam.Status = "Operable"
 
-	notamList := notam.NewNotamList()
-	for i, frNotam := range fl.notamList {
-		frNotam.Status = "Operable"
+ 		//avoid duplicate
+ 		_, ok := notamList.Data[frNotam.Id]
+ 		if !ok {
+ 			//record all notams, except the duplicate
+ 			notamList.Data[frNotam.Id] = frNotam.NotamReference
 
-		//avoid duplicate
-		_, ok := notamList.Data[frNotam.Id]
-		if !ok {
-			//record all notams, except the duplicate
-			notamList.Data[frNotam.Id] = frNotam.NotamReference
-
-			//send to db only if necessary
-			_, isOld := mg.ActiveNotams[frNotam.Id]
-			if !isOld {
-				fmt.Printf("Write %s / %d \n", i, len(fl.notamList))
-				mg.AddNotam(&frNotam.Notam)
-			}
-		} else {
-			fmt.Printf("Duplicated %s \n", frNotam.Id)
-		}
-	}
-	return notamList
-}
+ 			//send to db only if necessary
+ 			_, isOld := mg.ActiveNotams[frNotam.Id]
+ 			if !isOld {
+ 				//fmt.Printf("Write %s / %d \n", i, len(fl.notamList))
+ 				mg.AddNotam(&frNotam.Notam)
+ 			}
+ 		} else {
+ 			fmt.Printf("Duplicated %s \n", frNotam.Id)
+ 		}
+ 	}
+ 	return notamList
+ }
