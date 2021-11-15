@@ -63,7 +63,7 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 		canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
 		fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
 		mongoClient.SetCanceledNotamList(canceledNotams)
-		mongoClient.WriteActiveNotamToFile("./web/notams/" + def.Country + afs+".json")
+		mongoClient.WriteActiveNotamToFile(def.Country, afs)
 	}
 }
 

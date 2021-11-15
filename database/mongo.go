@@ -99,7 +99,10 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 
 // Write all the Active Notams in the indicated file.
 // The file is Gzipped.
-func (mgdb *Mongodb) WriteActiveNotamToFile(path string) {
+func (mgdb *Mongodb) WriteActiveNotamToFile(country string, afs string) {
+	const dir = "./web/notams/"
+	path := dir + country + "_" + afs + ".json"
+	
 	abs, err1 := filepath.Abs(path)
 	// Printing if there is no error
 	if err1 == nil {

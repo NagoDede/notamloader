@@ -43,7 +43,6 @@ type JpData struct {
 	codeList         jpCodeFile      //map[string]interface{}
 	LoginData        jpLoginFormData `json:"loginData"`
 	RequiredLocation []string        `json:"requiredLocation"`
-	Country		string		`json:"country"`
 }
 
 // jpCodeFile is the template to retrieve the airports data from the definition files
@@ -99,7 +98,7 @@ func (jpd *JpData) Process(wg *sync.WaitGroup) {
 	canceledNotams := mongoClient.IdentifyCanceledNotams(notams.Data)
 	fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
 	mongoClient.SetCanceledNotamList(canceledNotams)
-	mongoClient.WriteActiveNotamToFile(jpd.Country, "RJAAYNYX" )
+	mongoClient.WriteActiveNotamToFile("./web/notams/japan.json")
 }
 	
 func (jpd *JpData) notamByEnRoute(aisClient *webclient.AisWebClient, notams *notam.NotamList){

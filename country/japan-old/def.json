@@ -1,5 +1,6 @@
 {
  "country": "Japan",
+ "afsCode": "RJAAYNYX",
  "loginPage": "https://aisjapan.mlit.go.jp/LoginAction.do",
  "loginData": {
     "formName": "ais-web",
@@ -7,14 +8,11 @@
     "userID": "Env:JAPAN_AIP_USERID"
    },
  "logoutpage": "https://aisjapan.mlit.go.jp/LogoutAction.do",
- "localNotamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
- "localNotamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
- "localNotamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",
-
+ "notamFirstPage": "https://aisjapan.mlit.go.jp/KeySearcherAction.do",
+ "notamNextPage": "https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
+ "notamDetailPage": "https://aisjapan.mlit.go.jp/NotamDispAction.do",
  "mapPage":"https://aisjapan.mlit.go.jp/MapEnrouteSearcherAction.do",
  "mapAnswerPage":"https://aisjapan.mlit.go.jp/AnchorSearcherAction.do",
-
- "afsCode": "RJAAYNYX",
  "__notes__":"Contains all the airports ICAO codes",
  "codeListPath":"https://raw.githubusercontent.com/NagoDede/nagodede.github.io/master/aip/japan/documents/info.json",
  "__oldval__":"https://nagodede.github.io/aip/japan/documents/codes.json",
