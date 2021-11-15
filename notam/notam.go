@@ -99,13 +99,13 @@ type NotamReference struct {
 
 func (nr *NotamReference) GetKey() string {
 	//return nr.CountryCode + "-" + nr.Icaolocation + "-" + nr.Number
-	if nr.FirCode != "" {
-		return nr.AfsCode + "-" + nr.FirCode + "-" + nr.Number
-	}
+	// if nr.FirCode != "" {
+	// 	return nr.AfsCode + "-" + nr.FirCode + "-" + nr.Number
+	// }
 
-	if nr.Icaolocation != "" {
-		return nr.AfsCode + "-" + nr.Icaolocation + "-" + nr.Number
-	}
+	// if nr.Icaolocation != "" {
+	// 	return nr.AfsCode + "-" + nr.Icaolocation + "-" + nr.Number
+	// }
 
 	return nr.AfsCode + "-" + nr.Number
 
@@ -166,12 +166,12 @@ func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
 	ntm = ntm.FillLowerLimit(ntm, notamText)
 	ntm = ntm.FillUpperLimit(ntm, notamText)
 	ntm = ntm.FillKey(ntm)
-	ntm.filFromDates()
-	ntm.filToDates()
+	ntm.fillFromDates()
+	ntm.fillToDates()
 	return ntm
 }
 
-func (ntm *NotamAdvanced) filFromDates(){
+func (ntm *NotamAdvanced) fillFromDates(){
 	if len(ntm.FromDate) == 10 {
 		parsed, err :=  NotamDateToTime(ntm.FromDate, time.UTC)//time.Parse("0601021504", sDateFrom)
 		if err !=nil {
@@ -197,8 +197,10 @@ func (ntm *NotamAdvanced) filFromDates(){
 	}
 }
 
-func (ntm *NotamAdvanced) filToDates(){
-	if len(ntm.ToDate) == 10 {
+func (ntm *NotamAdvanced) fillToDates(){
+	if ntm.ToDate == "PERM" {
+		ntm.ToDateUtcClear = "Permanent"
+	} else if len(ntm.ToDate) == 10 {
 		parsed, err :=   NotamDateToTime(ntm.ToDate, time.UTC)//time.Parse("0601021504", sDateFrom)
 		if err !=nil {
 			fmt.Printf("Err to convert date %s \n", ntm.FromDate)
@@ -369,28 +371,6 @@ func FillIcaoLocation(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 
 	return ntm
 }
-
-// func FillDates(ntm *NotamAdvanced, txt string) *NotamAdvanced {
-// 	const ubkspace = "\xC2\xA0"
-// 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
-// 	q := strings.TrimSpace(re.FindString(txt))
-// 	q = strings.TrimLeft(q, "B)")
-// 	q = strings.TrimRight(q, "D)")
-// 	q = strings.TrimRight(q, " \r\n\t")
-// 	q = strings.TrimRight(q, ubkspace)
-
-// 	splitted := strings.Split(q, "C)")
-
-// 	if len(splitted) == 1 {
-// 		ntm.Status = "Error"
-// 	} else if len(splitted) == 2 {
-// 		ntm.FromDate = splitted[0][0:10]
-// 		ntm.ToDate = splitted[1][0:10]
-// 	} else {
-// 		ntm.Status = "Error"
-// 	}
-// 	return ntm
-// }
 
 func FillDates(fr *NotamAdvanced, txt string) *NotamAdvanced {
 

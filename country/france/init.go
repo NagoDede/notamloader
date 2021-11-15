@@ -30,6 +30,7 @@ type DefData struct {
 	NotamRequestUrl   string              `json:"notamRequestUrl"`
 	CodeListPath      string              `json:"codeListPath"`
 	RequiredLocations map[string][]string `json:"requiredLocation"`
+	Country			string				`json:"country"`
 }
 
 var mongoClient *database.Mongodb
@@ -62,7 +63,7 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 		canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
 		fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
 		mongoClient.SetCanceledNotamList(canceledNotams)
-		mongoClient.WriteActiveNotamToFile("./web/notams/france.json")
+		mongoClient.WriteActiveNotamToFile("./web/notams/" + def.Country + afs+".json")
 	}
 }
 
