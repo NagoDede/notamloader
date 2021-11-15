@@ -48,7 +48,7 @@ func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 		end = len(txt)
 	}
 	fr.NotamReference.Number = strings.Trim(txt[strings.Index(txt, "-")+1:end], " \r\n\t")
-	
+
 	return fr
 }
 
@@ -67,14 +67,18 @@ func FillDates(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 		fr.Status = "Error"
 	} else if len(splitted) == 2 {
 		sDateFrom := splitted[0]
-		sDateFrom = strings.ReplaceAll(sDateFrom, "  ", " ")
+		for strings.Contains(sDateFrom, "  ") {
+			sDateFrom = strings.ReplaceAll(sDateFrom, "  ", " ")
+		}
 		sDateFrom = strings.Trim(sDateFrom, " \n\r\t")
 		//2021 Jan 27 23:59
 		//--> 2006 Jan 02 15:04
 		dateFrom, _ := time.Parse("2006 Jan 02 15:04", sDateFrom)
 		fr.FromDate = dateFrom.Format("0601021504")
 		sDateTo := splitted[1]
-		sDateTo = strings.ReplaceAll(sDateTo, "  ", " ")
+		for strings.Contains(sDateTo, "  ") {
+			sDateTo = strings.ReplaceAll(sDateTo, "  ", " ")
+		}
 		//NOTAM for AIP references are indicated as PERManent.
 		if strings.Contains(sDateTo, "PERM") {
 			fr.ToDate = "PERM"

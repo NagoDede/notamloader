@@ -28,9 +28,10 @@ const (
 // Converts the NOTAM date (yymmddhhmm) to date
 // The Golang date parse is limited by the use of two-digit year.
 // The function overcomes the limitation thanks the recognition of the current year.
-func NotamDateToTime(ndte string) time.Time {
-	utc := time.UTC
-	parsedate, _ := time.ParseInLocation(NotamDateLayout, ndte, utc)
+func NotamDateToTime(ndte string, loc *time.Location) (time.Time, error) {
+	
+	//utc := time.UTC
+	parsedate, err := time.ParseInLocation(NotamDateLayout, ndte, loc)
 	// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated as 19NN and a value NN < 69 will be treated as 20NN.
 	if parsedate.Year() < time.Now().Year() {
 		var mil float64
@@ -40,8 +41,8 @@ func NotamDateToTime(ndte string) time.Time {
 		// complete the notam year to get a four-digit year
 		ndte = fmt.Sprintf("%d%s", int(mil), ndte)
 		layout := "200601021504"
-		parsedate, _ = time.ParseInLocation(layout, ndte, utc)
+		parsedate, err = time.ParseInLocation(layout, ndte, loc)
 	}
 
-	return parsedate
+	return parsedate, err
 }

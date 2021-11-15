@@ -75,3 +75,7 @@ func (aisclient *AisWebClient) SendPost(url string, form interface{}) (resp *htt
 	aisclient.RUnlock()
 	return
 }
+
+func (aisclient *AisWebClient) Get(url string) (resp *http.Response, err error){
+	return aisclient.Client.Get(url)
+}

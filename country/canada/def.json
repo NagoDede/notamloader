@@ -1,0 +1,16 @@
+{
+ "country": "Canada",
+ "logoutpage": "",
+ "notamRequestUrl": "https://plan.navcanada.ca/weather/api/alpha/?polygon=CZVR|fir|-125.768,52.205&polygon=CZEG|fir|-107.908,71.977&polygon=CZWG|fir|-93.047,54.717&polygon=CZYZ|fir|-81.478,47.525&polygon=CZUL|fir|-71.114,55.435&polygon=CZQM|fir|-62.875,45.425&polygon=CZQX|fir|-46.479,53.645&alpha=notam&notam_choice=english",
+ "__notes__":"Contains all the airports ICAO codes",
+ "codeListPath":"",
+ "__notes_":"The following NOTAM location indicators are extracted from NavCanda Designated Airspace Handbook - Issue N°291-07 October 2012",
+ "__notes":"FIR are: Vancouver - CZVR, Edmonton - CZEG, Winnipeg - CZWG, Toronto - CZYZ, Montral - CZUL, Moncton - CZQM, Gander - CZQX",
+ "__notes":"All the Notams can be retrieved by a single GET on the appropriate Url",
+ "__notamRequestUrl__": "https://plan.navcanada.ca/wxrecall/",
+ "__notes_":"see https://www.navcanada.ca/en/briefing-on-the-transition-to-icao-notam-format.pdf and https://www.navcanada.ca/en/aeronautical-information/operational-guides.aspx",
+  "requiredLocation":{  "CYHQYNYX": ["CZVR", "CZEG", "CZWG","CZYZ", "CZUL", "CZQM","CZQX"]
+                    }
+}
+
+

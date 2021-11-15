@@ -6,14 +6,18 @@ import (
 	"sync"
 
 	"github.com/NagoDede/notamloader/country/asecna"
+	"github.com/NagoDede/notamloader/country/canada"
 	"github.com/NagoDede/notamloader/country/france"
-	_"github.com/NagoDede/notamloader/country/japan"
+	"github.com/NagoDede/notamloader/country/japan"
 )
 
 func main() {
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(4)
+
+	canadaProcessor := canada.DefData{}
+	go canadaProcessor.Process(wg)
 
 	asecnaNotamProcessor := asecna.DefData{}
 	go asecnaNotamProcessor.Process(wg)
@@ -21,8 +25,8 @@ func main() {
 	franceNotamProcessor := france.DefData{}
 	go franceNotamProcessor.Process(wg)
 
-	//japanNotamProcessor := japan.JpData{}
-	//go japanNotamProcessor.Process(wg)
+	japanNotamProcessor := japan.JpData{}
+	go japanNotamProcessor.Process(wg)
 
 	wg.Wait()
 	fmt.Println("All Process Ended")

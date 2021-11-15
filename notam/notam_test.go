@@ -16,7 +16,7 @@ func TestNotamDateToTime(t *testing.T) {
 	//For layouts specifying the two-digit year 06, a value NN >= 69 will be treated as 19NN and a value NN < 69 will be treated as 20NN.
 	//Test that we will retrieve only 20NN value even if NN >=69
 	for i := range dates {
-		got := NotamDateToTime(dates[i])
+		got := NotamDateToTime(dates[i], time.UTC)
 
 		if got != realdates[i] {
 			t.Errorf("Got %s instead %s \n", got, realdates[i])

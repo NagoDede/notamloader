@@ -26,11 +26,13 @@ package notam
 
 import (
 	"fmt"
+	_"log"
 	_ "net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/NagoDede/notamloader/webclient"
 )
@@ -43,7 +45,11 @@ type Notam struct {
 	Replace    string `json:"replace"`
 	NotamCode  NotamCode
 	FromDate   string
+	FromDateUtcTime	time.Time
+	FromDateUtcClear	string
 	ToDate     string
+	ToDateUtcTime	time.Time 
+	ToDateUtcClear	string
 	Schedule   string
 	Text       string
 	LowerLimit string
@@ -160,7 +166,60 @@ func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
 	ntm = ntm.FillLowerLimit(ntm, notamText)
 	ntm = ntm.FillUpperLimit(ntm, notamText)
 	ntm = ntm.FillKey(ntm)
+	ntm.filFromDates()
+	ntm.filToDates()
 	return ntm
+}
+
+func (ntm *NotamAdvanced) filFromDates(){
+	if len(ntm.FromDate) == 10 {
+		parsed, err :=  NotamDateToTime(ntm.FromDate, time.UTC)//time.Parse("0601021504", sDateFrom)
+		if err !=nil {
+			fmt.Printf("Err to convert date %s \n", ntm.FromDate)
+		}
+		ntm.FromDateUtcTime = parsed
+		ntm.FromDateUtcClear = parsed.Format("Mon Jan 2 15:04 UTC 2006")
+
+	} else if len(ntm.FromDate) == 13 {
+		tz := ntm.FromDate[len(ntm.FromDate)-3:]
+		location, err := time.LoadLocation(tz)
+		if err != nil {
+			fmt.Printf("Not a timezone %s \n", tz)
+		}
+		parsed, err := NotamDateToTime(ntm.FromDate[0:10], location)//time.ParseInLocation("0601021504", sDateFrom[0:10], location)
+		if err !=nil {
+			fmt.Printf("Err to convert date %s (loca %s) \n", ntm.FromDate[0:10], ntm.FromDate[10:])
+		}
+		ntm.FromDateUtcTime = parsed.UTC()
+		ntm.FromDateUtcClear = ntm.FromDateUtcTime.Format("Mon Jan 2 15:04 UTC 2006")
+	} else {
+		fmt.Printf("%s not a valid date To \n", ntm.FromDate)
+	}
+}
+
+func (ntm *NotamAdvanced) filToDates(){
+	if len(ntm.ToDate) == 10 {
+		parsed, err :=   NotamDateToTime(ntm.ToDate, time.UTC)//time.Parse("0601021504", sDateFrom)
+		if err !=nil {
+			fmt.Printf("Err to convert date %s \n", ntm.FromDate)
+		}
+		ntm.ToDateUtcTime = parsed
+		ntm.ToDateUtcClear = parsed.Format("Mon Jan 2 15:04 UTC 2006")
+
+	} else if len(ntm.ToDate) == 13 {
+		tz := ntm.ToDate[len(ntm.ToDate)-3:]
+		location, err := time.LoadLocation(tz)
+		if err != nil {
+			fmt.Printf("Not a timezone %s \n", tz)
+		}
+		parsed, err := NotamDateToTime(ntm.ToDate[0:10], location)//time.ParseInLocation("0601021504", sDateFrom[0:10], location)
+		if err !=nil {
+			fmt.Printf("Err to convert date %s (loca %s) \n", ntm.ToDate[0:10], ntm.ToDate[10:])		}
+		ntm.ToDateUtcTime = parsed.UTC()
+		ntm.ToDateUtcClear = ntm.ToDateUtcTime.Format("Mon Jan 2 15:04 UTC 2006")
+	} else {
+		fmt.Printf("%s not a valid date To \n", ntm.ToDate)
+	}
 }
 
 func FillKey(ntm *NotamAdvanced) *NotamAdvanced {
@@ -311,7 +370,46 @@ func FillIcaoLocation(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	return ntm
 }
 
-func FillDates(ntm *NotamAdvanced, txt string) *NotamAdvanced {
+// func FillDates(ntm *NotamAdvanced, txt string) *NotamAdvanced {
+// 	const ubkspace = "\xC2\xA0"
+// 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
+// 	q := strings.TrimSpace(re.FindString(txt))
+// 	q = strings.TrimLeft(q, "B)")
+// 	q = strings.TrimRight(q, "D)")
+// 	q = strings.TrimRight(q, " \r\n\t")
+// 	q = strings.TrimRight(q, ubkspace)
+
+// 	splitted := strings.Split(q, "C)")
+
+// 	if len(splitted) == 1 {
+// 		ntm.Status = "Error"
+// 	} else if len(splitted) == 2 {
+// 		ntm.FromDate = splitted[0][0:10]
+// 		ntm.ToDate = splitted[1][0:10]
+// 	} else {
+// 		ntm.Status = "Error"
+// 	}
+// 	return ntm
+// }
+
+func FillDates(fr *NotamAdvanced, txt string) *NotamAdvanced {
+
+	cutAtSpaceOrCr := func(s string) string {
+		space := strings.Index(s, " ")
+		cr := strings.Index(s, "\n")
+		if (space > 0) && (cr > space) {
+			s = s[:space]
+		} else {
+			if cr > 0 {
+				s = s[:cr]
+			} else {
+				return s
+			}
+		}
+		return s
+	}
+
+	//retrieve the Date fields and clean around
 	const ubkspace = "\xC2\xA0"
 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
 	q := strings.TrimSpace(re.FindString(txt))
@@ -319,19 +417,36 @@ func FillDates(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	q = strings.TrimRight(q, "D)")
 	q = strings.TrimRight(q, " \r\n\t")
 	q = strings.TrimRight(q, ubkspace)
-
+	q = strings.ReplaceAll(q, ubkspace, " ")
+	for strings.Contains(q, "  ") {
+		q = strings.ReplaceAll(q, "  ", " ")
+	}
 	splitted := strings.Split(q, "C)")
 
 	if len(splitted) == 1 {
-		ntm.Status = "Error"
+		fr.Status = "Error"
 	} else if len(splitted) == 2 {
-		ntm.FromDate = splitted[0][0:10]
-		ntm.ToDate = splitted[1][0:10]
-	} else {
-		ntm.Status = "Error"
+		sDateFrom := splitted[0]
+		sDateFrom = strings.Trim(sDateFrom, " \n\r\t")
+		sDateFrom = cutAtSpaceOrCr(sDateFrom)
+
+		fr.FromDate = sDateFrom
 	}
-	return ntm
+
+
+		sDateTo := splitted[1]
+		sDateTo = strings.Trim(sDateTo, " \n\r\t")
+		sDateTo = cutAtSpaceOrCr(sDateTo)
+		//NOTAM for AIP references are indicated as PERManent.
+		if strings.Contains(sDateTo, "PERM") {
+			fr.ToDate = "PERM"
+		} else {
+			fr.ToDate = sDateTo	
+		}		
+
+	return fr
 }
+
 
 func FillText(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
@@ -347,7 +462,7 @@ func FillText(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 		q = q[0 : len(q)-2]
 	} 
 
-	q = strings.TrimRight(q, ubkspace+" \r\n\t")
+	q = strings.Trim(q, ubkspace + " \r\n\t")
 
 	ntm.Text = q
 	return ntm
