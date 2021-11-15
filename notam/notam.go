@@ -95,8 +95,6 @@ type NotamReference struct {
 	FirCode      string `json:"fircode"`
 }
 
-
-
 func (nr *NotamReference) GetKey() string {
 	//return nr.CountryCode + "-" + nr.Icaolocation + "-" + nr.Number
 	// if nr.FirCode != "" {
@@ -108,7 +106,6 @@ func (nr *NotamReference) GetKey() string {
 	// }
 
 	return nr.AfsCode + "-" + nr.Number
-
 }
 
 type GeoData struct {

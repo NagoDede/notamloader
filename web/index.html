@@ -55,14 +55,12 @@
     
         function init() {
           
-        //    if (navigator.geolocation) {
-        //     navigator.geolocation.getCurrentPosition(setMapPosition);
-        //     NotamsFiles.forEach(loadData)
-        //     } else {
-        //     x.innerHTML = "Geolocation is not supported by this browser.";
-        //     mymap.setView([45.0, 3.0], 4);
-        //     NotamsFiles.forEach(loadData)    
-        // }
+            if (navigator.geolocation) {
+             navigator.geolocation.getCurrentPosition(setMapPosition);
+            } else {
+             x.innerHTML = "Geolocation is not supported by this browser.";
+             mymap.setView([45.0, 3.0], 4);
+            }
         NotamsFiles.forEach(loadData)
           
         }

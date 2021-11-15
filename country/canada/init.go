@@ -83,8 +83,9 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 		for _, notamTxt := range jsonAnswer.Data {
 			var text textStruct
 			err = json.Unmarshal([]byte(notamTxt.Text), &text)
-			fmt.Printf("%#v \n", text)
-
+			if err != nil {
+				fmt.Println("Error in umarshall Canada data")
+			}
 			ntm := NewNotam(afs)
 			ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, text.Raw)
 			_, ok := notamList.notamList[ntm.Id]
