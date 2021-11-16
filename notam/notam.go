@@ -125,7 +125,7 @@ type NotamCode struct {
 	Coordinates string `json:"coordinates"`
 }
 
- type NotamList struct {
+ type NotamReferenceList struct {
  	sync.RWMutex
  	Data map[string]NotamReference
  }
@@ -149,8 +149,8 @@ func NewNotamAdvanced() *NotamAdvanced {
 	return ntm
 }
 
- func NewNotamList() *NotamList {
- 	return &NotamList{Data: make(map[string]NotamReference)}
+ func NewNotamReferenceList() *NotamReferenceList {
+ 	return &NotamReferenceList{Data: make(map[string]NotamReference)}
  }
 
 func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {

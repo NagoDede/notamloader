@@ -84,9 +84,9 @@ func FillDates(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 	return fr
 }
 
-func (fl *NotamList) SendToDatabase(mg *database.Mongodb) *notam.NotamList {
+func (fl *NotamList) SendToDatabase(mg *database.Mongodb) *notam.NotamReferenceList {
 
-	notamList := notam.NewNotamList()
+	notamList := notam.NewNotamReferenceList()
 	for _, frNotam := range fl.notamList {
 		frNotam.Status = "Operable"
 

@@ -85,7 +85,7 @@ func (jpd *JpData) Process(wg *sync.WaitGroup) {
 	fmt.Println("Connected to AIS Japan")
 
 	//Will contain all the retrieved Notams
-	notams := notam.NewNotamList() 	// &notam.NotamList{m: make(map[string]NotamReference)}// make(map[string]notam.NotamReference)
+	notams := notam.NewNotamReferenceList() 	// &notam.NotamList{m: make(map[string]NotamReference)}// make(map[string]notam.NotamReference)
 
 	//Initiate a new mongo db interface
 	mongoClient = database.NewMongoDb(jpd.AfsCode)
@@ -102,7 +102,7 @@ func (jpd *JpData) Process(wg *sync.WaitGroup) {
 	mongoClient.WriteActiveNotamToFile(jpd.Country, "RJAAYNYX" )
 }
 	
-func (jpd *JpData) notamByEnRoute(aisClient *webclient.AisWebClient, notams *notam.NotamList){
+func (jpd *JpData) notamByEnRoute(aisClient *webclient.AisWebClient, notams *notam.NotamReferenceList){
 	mapsearch := JpNotamMapSubmit{
 		Enroute:    "1",
 		Period:     "24",
@@ -122,7 +122,7 @@ func (jpd *JpData) notamByEnRoute(aisClient *webclient.AisWebClient, notams *not
 }
 
 
-func (jpd *JpData) notamByAirport(aisClient *webclient.AisWebClient, notams *notam.NotamList ){
+func (jpd *JpData) notamByAirport(aisClient *webclient.AisWebClient, notams *notam.NotamReferenceList ){
 
 		//define a default search to fullfill the form
 	//Use 24h duration, retrieve the advisory and warning notams
@@ -160,7 +160,7 @@ func (jpd *JpData) notamByAirport(aisClient *webclient.AisWebClient, notams *not
 
 func (jpd *JpData) getFullNotams(notamReferences []JpNotamDispForm,
 	//allRetrievedNotams map[string]notam.NotamReference,
-	allRetrievedNotams *notam.NotamList,
+	allRetrievedNotams *notam.NotamReferenceList,
 	mongoClient *database.Mongodb,
 	aisClient *webclient.AisWebClient) {
 
