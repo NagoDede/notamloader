@@ -21,6 +21,9 @@ import (
 	_ "github.com/NagoDede/notamloader/webclient"
 	_ "go.mongodb.org/mongo-driver/mongo"
 	_ "golang.org/x/net/publicsuffix"
+
+	"github.com/rs/zerolog"
+    "github.com/rs/zerolog/log"
 )
 
 // FrData contains all the information required to connect and retrieve NOTAM from AIS services
@@ -34,6 +37,7 @@ type DefData struct {
 var mongoClient *database.Mongodb
 var aisClient *webclient.AisWebClient
 
+
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
 // It recovers the relevant information from a json file, set in ./country/japan/def.json.
 // Then, it initiates the http and mongodb interfaces.
@@ -41,6 +45,7 @@ var aisClient *webclient.AisWebClient
 // the webform to identify the reference list of the relevant NOTAM.
 func (def *DefData) Process(wg *sync.WaitGroup) {
 
+	logInit()
 	defer wg.Done()
 
 	//retrieve the configuration data from the json file
@@ -48,7 +53,7 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 	//Init a the http client thanks tp the configuration data
 	//Initiate a new mongo db interface
 	aisClient = webclient.NewAisWebClient()
-	fmt.Println("Connected to AIS ASECNA")
+	log.Info().Msg("Connected to AIS ASECNA")
 
 	for afs := range def.RequiredLocations {
 
@@ -84,4 +89,9 @@ func (def *DefData) loadJsonFile(path string) {
 	if err != nil {
 		fmt.Println("error:", err)
 	}
+}
+
+func logInit(){
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 }

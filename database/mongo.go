@@ -295,3 +295,28 @@ func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamStatus) {
 		}
 	}
 }
+
+func (mg *Mongodb ) SendToDatabase(fl *notam.NotamList) *notam.NotamReferenceList {
+
+	notamList := notam.NewNotamReferenceList()
+	for _, frNotam := range fl.Data {
+		frNotam.Status = "Operable"
+
+		//avoid duplicate
+		_, ok := notamList.Data[frNotam.Id]
+		if !ok {
+			//record all notams, except the duplicate
+			notamList.Data[frNotam.Id] = frNotam.NotamReference
+
+			//send to db only if necessary
+			_, isOld := mg.ActiveNotams[frNotam.Id]
+			if !isOld {
+				//fmt.Printf("Write %s / %d \n", i, len(fl.notamList))
+				mg.AddNotam(frNotam)
+			}
+		} else {
+			fmt.Printf("Duplicated %s \n", frNotam.Id)
+		}
+	}
+	return notamList
+}

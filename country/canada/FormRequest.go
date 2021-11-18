@@ -13,7 +13,7 @@ type InitJson struct{
 
 type DataStruct struct{
 	Type 			string `json:"type"`
-	Pk 				uint32 		`json:"pk"`
+	Pk 				string 		`json:"pk"`
 	Location 		string 	`json:"location"`
 	StartValidity	string	`json:"startValidity"`
 	EndValidity		string	`json:"endValidity"`

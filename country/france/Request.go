@@ -63,10 +63,10 @@ func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *F
 	// Dedicated function that requests the notams from min_id to max_id
 	individualRequest := func(min_id int, cnt int) {
 		resp, err := def.SendRequest(initForm.EncodeForComplet(min_id, cnt))
-		defer resp.Body.Close()
 		if err != nil {
 			log.Fatalln(err)
 		}
+		defer resp.Body.Close()
 		notamsText := extractNotams(resp.Body)
 		allNotams = def.createNotamsFromText(afs, notamsText, allNotams)
 		count = count + len(notamsText)

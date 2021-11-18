@@ -23,6 +23,8 @@ import (
 	_ "github.com/NagoDede/notamloader/webclient"
 	_ "go.mongodb.org/mongo-driver/mongo"
 	_ "golang.org/x/net/publicsuffix"
+
+	"github.com/TwiN/go-color"
 )
 
 // FrData contains all the information required to connect and retrieve NOTAM from AIS services
@@ -50,7 +52,7 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 	//Init a the http client thanks tp the configuration data
 	//Initiate a new mongo db interface
 	aisClient = webclient.NewAisWebClient()
-	fmt.Printf("Ready to retrieve data for %s \n", def.Country)
+	fmt.Printf(color.Ize(color.Green,"Ready to retrieve data for %s \n"), def.Country)
 
 	resp, err := aisClient.Get(def.NotamRequestUrl)
 	if err != nil {
@@ -75,7 +77,7 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 		French  string `json:"french"`
 	}
 
-	notamList := NewNotamList()
+	notamList := notam.NewNotamList()
 
 	for afs, _ := range def.RequiredLocations {
 		mongoClient = database.NewMongoDb(afs)
@@ -86,15 +88,16 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 			if err != nil {
 				fmt.Println("Error in umarshall Canada data")
 			}
-			ntm := NewNotam(afs)
-			ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, text.Raw)
+			ntm := notam.NewNotamAdvanced()
+			ntm.AfsCode = afs
+			ntm = notam.FillNotamFromText(ntm, text.Raw)
 			_, ok := notamList.Data[ntm.Id]
 			if !ok {
-				notamList.Data[ntm.Id] = ntm
+				notamList.Data[ntm.Id] = &ntm.Notam
 			}
 		}
 
-		realNotamsList := notamList.SendToDatabase(mongoClient)
+		realNotamsList := mongoClient.SendToDatabase(notamList)
 		fmt.Printf("Applicable NOTAM: %d \n", len(realNotamsList.Data))
 		canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
 		fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
