@@ -26,7 +26,7 @@ package notam
 
 import (
 	"fmt"
-	_"log"
+	_ "log"
 	_ "net/http"
 	"regexp"
 	"strconv"
@@ -35,30 +35,42 @@ import (
 	"time"
 
 	"github.com/NagoDede/notamloader/webclient"
+
+	"github.com/rs/zerolog/log"
+)
+
+const (
+	NotamIcaoDate      string = "0601021504"
+	NotamIcaoLocalDate string = "0601021504 MST"
+	NotamDefaultDate   string = "200601021504"
+	NotamTextDate      string = "Mon Jan 2 15:04 UTC 2006"
 )
 
 type Notam struct {
 	Id string `bson:"_id" json:"id,omitempty"`
 	NotamReference
 	GeoData
-	Identifier string `json:"identifier"`
-	Replace    string `json:"replace"`
-	NotamCode  NotamCode
-	FromDate   string
-	FromDateUtcTime	time.Time
-	FromDateUtcClear	string
-	ToDate     string
-	ToDateUtcTime	time.Time 
-	ToDateUtcClear	string
-	Schedule   string
-	Text       string
-	LowerLimit string
-	UpperLimit string
-	Status     string
+	Identifier       string `json:"identifier"`
+	Replace          string `json:"replace"`
+	NotamCode        NotamCode
+	FromDate         string
+	FromDateUtcTime  time.Time
+	FromDateUtcClear string
+	ToDate           string
+	ToDateUtcTime    time.Time
+	ToDateUtcClear   string
+	Schedule         string
+	Text             string
+	LowerLimit       string
+	UpperLimit       string
+	Status           string
 }
 
 type NotamAdvanced struct {
 	Notam
+
+	DateFromFormat string `json:"-"`
+	DateToFormat   string `json:"-"`
 
 	FillIcaoLocation func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
 	FillNotamCode    func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
@@ -67,7 +79,9 @@ type NotamAdvanced struct {
 	FillText         func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
 	FillLowerLimit   func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
 	FillUpperLimit   func(*NotamAdvanced, string) *NotamAdvanced `json:"-"`
-	FillKey			func(*NotamAdvanced) *NotamAdvanced `json:"-"`
+	FillKey          func(*NotamAdvanced) *NotamAdvanced         `json:"-"`
+	//DatesFormatToICAO func (*NotamAdvanced, string) *NotamAdvanced `json:"-"`
+
 }
 
 type NotamStatus struct {
@@ -80,6 +94,7 @@ type INotam interface {
 	FillNotamCode(string)
 	FillIcaoLocation(string)
 	FillDates(string)
+	//DatesFormat(string)
 	FillText(string)
 	FillLowerLimit(string)
 	FillUpperLimit(string)
@@ -125,10 +140,10 @@ type NotamCode struct {
 	Coordinates string `json:"coordinates"`
 }
 
- type NotamReferenceList struct {
- 	sync.RWMutex
- 	Data map[string]NotamReference
- }
+type NotamReferenceList struct {
+	sync.RWMutex
+	Data map[string]NotamReference
+}
 
 const ubkspace = "\xC2\xA0"
 
@@ -149,12 +164,11 @@ func NewNotamAdvanced() *NotamAdvanced {
 	return ntm
 }
 
- func NewNotamReferenceList() *NotamReferenceList {
- 	return &NotamReferenceList{Data: make(map[string]NotamReference)}
- }
+func NewNotamReferenceList() *NotamReferenceList {
+	return &NotamReferenceList{Data: make(map[string]NotamReference)}
+}
 
 func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
-
 	ntm = ntm.FillNotamNumber(ntm, notamText)
 	ntm = ntm.FillNotamCode(ntm, notamText)
 	ntm = ntm.FillIcaoLocation(ntm, notamText)
@@ -168,57 +182,184 @@ func FillNotamFromText(ntm *NotamAdvanced, notamText string) *NotamAdvanced {
 	return ntm
 }
 
-func (ntm *NotamAdvanced) fillFromDates(){
-	if len(ntm.FromDate) == 10 {
-		parsed, err :=  NotamDateToTime(ntm.FromDate, time.UTC)//time.Parse("0601021504", sDateFrom)
-		if err !=nil {
-			fmt.Printf("Err to convert date %s \n", ntm.FromDate)
+func (ntm *NotamAdvanced) fillFromDates() {
+	if len(ntm.FromDate) == len(ntm.DateFromFormat) {
+		var parsed time.Time
+		var err error
+		if strings.Contains(ntm.DateFromFormat, "MST") {
+			parsed, err = NotamDateToTime(ntm.FromDate, ntm.DateFromFormat, nil) //time.Parse("0601021504", sDateFrom)
+		} else {
+			parsed, err = NotamDateToTime(ntm.FromDate, ntm.DateFromFormat, time.UTC) //time.Parse("0601021504", sDateFrom)
+			if err == nil {
+				ntm.FromDateUtcTime = parsed
+				ntm.FromDateUtcClear = parsed.Format(NotamTextDate)
+				return
+			}
 		}
-		ntm.FromDateUtcTime = parsed
-		ntm.FromDateUtcClear = parsed.Format("Mon Jan 2 15:04 UTC 2006")
-
-	} else if len(ntm.FromDate) == 13 {
-		tz := ntm.FromDate[len(ntm.FromDate)-3:]
-		location, err := time.LoadLocation(tz)
-		if err != nil {
-			fmt.Printf("Not a timezone %s \n", tz)
-		}
-		parsed, err := NotamDateToTime(ntm.FromDate[0:10], location)//time.ParseInLocation("0601021504", sDateFrom[0:10], location)
-		if err !=nil {
-			fmt.Printf("Err to convert date %s (loca %s) \n", ntm.FromDate[0:10], ntm.FromDate[10:])
-		}
-		ntm.FromDateUtcTime = parsed.UTC()
-		ntm.FromDateUtcClear = ntm.FromDateUtcTime.Format("Mon Jan 2 15:04 UTC 2006")
-	} else {
-		fmt.Printf("%s not a valid date To \n", ntm.FromDate)
 	}
+
+	// ok, the format is not correct, may be they revert to the standard ICAO
+	if len(ntm.FromDate) == len(NotamIcaoDate) {
+		parsed, err := NotamDateToTime(ntm.FromDate, NotamIcaoDate, time.UTC) //time.Parse("0601021504", sDateFrom)
+		if err == nil {
+			ntm.FromDateUtcTime = parsed
+			ntm.FromDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		}
+	}
+
+	// ok, the format is not correct, may be they revert to the standard ICAO with local
+	if len(ntm.FromDate) == len(NotamIcaoLocalDate) {
+		parsed, err := NotamDateToTime(ntm.FromDate, NotamIcaoLocalDate, nil) //time.Parse("0601021504", sDateFrom)
+		if err == nil {
+			ntm.FromDateUtcTime = parsed
+			ntm.FromDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		}
+	}
+
+	// ok, the format is not correct, may be they revert to the standard ICAO with local, without space
+	if len(strings.ReplaceAll(ntm.FromDate, " ", "")) == len(strings.ReplaceAll(NotamIcaoLocalDate, " ", "")) {
+		parsed, err := NotamDateToTime(strings.ReplaceAll(ntm.FromDate, " ", ""),
+			strings.ReplaceAll(NotamIcaoLocalDate, " ", ""), nil) //time.Parse("0601021504", sDateFrom)
+		if err == nil {
+			ntm.FromDateUtcTime = parsed
+			ntm.FromDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		}
+	}
+
+	fmt.Print("here")
+	//clearly we have a problem to read the date
+	log.Warn().Msgf("Notam: %s - %s not a valid date FROM (expect layout: %s or ICAO standard)", ntm.Number, ntm.FromDate, ntm.DateFromFormat)
+
 }
 
-func (ntm *NotamAdvanced) fillToDates(){
+func (ntm *NotamAdvanced) fillToDates() {
+
 	if ntm.ToDate == "PERM" {
 		ntm.ToDateUtcClear = "Permanent"
-	} else if len(ntm.ToDate) == 10 {
-		parsed, err :=   NotamDateToTime(ntm.ToDate, time.UTC)//time.Parse("0601021504", sDateFrom)
-		if err !=nil {
-			fmt.Printf("Err to convert date %s \n", ntm.FromDate)
-		}
-		ntm.ToDateUtcTime = parsed
-		ntm.ToDateUtcClear = parsed.Format("Mon Jan 2 15:04 UTC 2006")
+		log.Trace().Msgf("Notam: %s - PERMANENT NOTAM", ntm.Number)
+		return
+	}
 
-	} else if len(ntm.ToDate) == 13 {
-		tz := ntm.ToDate[len(ntm.ToDate)-3:]
+	//To retrieve any Timezone set in a ToDate
+	//Take credit that FromDate and TO date have the same layout
+	var extractLoc string
+	if len(ntm.ToDate) > len(ntm.FromDate) {
+		extractLoc = ntm.ToDate[:len(ntm.FromDate)]
+		extractLoc = strings.Trim(extractLoc, " ")
+	}
+
+	if len(ntm.ToDate) == len(ntm.DateToFormat) {
+		//Everything is correct
+		var parsed time.Time
+		var err error
+		if strings.Contains(ntm.DateToFormat, "MST") {
+			parsed, err = NotamDateToTime(ntm.ToDate, ntm.DateToFormat, nil) //time.Parse("0601021504", sDateFrom)
+			if err == nil {
+				ntm.ToDateUtcTime = parsed
+				ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+				return
+			} else {
+				log.Trace().Msgf("Notam: %s - %s not a valid date TO (expect layout: %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+				log.Error().Err(err)
+			}
+		} else {
+			parsed, err = NotamDateToTime(ntm.ToDate, ntm.DateToFormat, time.UTC) //time.Parse("0601021504", sDateFrom)
+			if err == nil {
+				ntm.ToDateUtcTime = parsed
+				ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+				return
+			} else {
+				log.Trace().Msgf("Notam: %s - %s not a valid date TO (expect layout: %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+				log.Error().Err(err)
+			}
+		}
+	}
+
+	if len(ntm.ToDate) == len(ntm.DateFromFormat) {
+		//There is case where the To date is set with location, sometimes no.. so we compare with the From
+		//So here is the case where we expect a Location, but in fact... there is no location. So it's UTC
+		parsed, err := NotamDateToTime(ntm.ToDate, ntm.DateFromFormat, time.UTC) //time.Parse("0601021504", sDateFrom)
+		if err == nil {
+			ntm.ToDateUtcTime = parsed
+			ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		} else {
+			log.Trace().Msgf("Notam: %s - %s not a valid date TO (forced FROM layout: %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+			log.Error().Err(err)
+		}
+	}
+
+	if len(extractLoc) == 3 {
+		//We don't expect a location, but there is a location.
+		//Complete the Form Layout
+		tz := extractLoc
 		location, err := time.LoadLocation(tz)
 		if err != nil {
 			fmt.Printf("Not a timezone %s \n", tz)
 		}
-		parsed, err := NotamDateToTime(ntm.ToDate[0:10], location)//time.ParseInLocation("0601021504", sDateFrom[0:10], location)
-		if err !=nil {
-			fmt.Printf("Err to convert date %s (loca %s) \n", ntm.ToDate[0:10], ntm.ToDate[10:])		}
-		ntm.ToDateUtcTime = parsed.UTC()
-		ntm.ToDateUtcClear = ntm.ToDateUtcTime.Format("Mon Jan 2 15:04 UTC 2006")
-	} else {
-		fmt.Printf("%s not a valid date To \n", ntm.ToDate)
+		parsed, err := NotamDateToTime(ntm.ToDate[:len(ntm.DateFromFormat)], ntm.DateFromFormat, location) //time.ParseInLocation("0601021504", sDateFrom[0:10], location)
+		if err == nil {
+			ntm.ToDateUtcTime = parsed
+			ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		} else {
+			log.Trace().Msgf("Notam: %s - %s not a valid date TO (forced FROM layout with Location : %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+			log.Error().Err(err)
+		}
 	}
+
+		// ok, the format is not correct, may be they revert to the standard ICAO
+		if len(ntm.ToDate) == len(NotamIcaoDate) {
+			parsed, err := NotamDateToTime(ntm.ToDate, NotamIcaoDate, nil) //time.Parse("0601021504", sDateFrom)
+			if err == nil {
+				ntm.ToDateUtcTime = parsed
+				ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+				return
+			} else {
+				log.Trace().Msgf("Notam: %s - %s not a valid date TO (forced ICAO layout: %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+				log.Error().Err(err)
+			}
+		}
+
+	// ok, the format is not correct, may be they revert to the standard ICAO with local
+	if len(ntm.ToDate) == len(NotamIcaoLocalDate) {
+		parsed, err := NotamDateToTime(ntm.ToDate, NotamIcaoLocalDate, nil) //time.Parse("0601021504", sDateFrom)
+		if err == nil {
+			ntm.ToDateUtcTime = parsed
+			ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		} else {
+			log.Trace().Msgf("Notam: %s - %s not a valid date TO (forced ICAO layout: %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+			log.Error().Err(err)
+		}
+	}
+
+	// ok, the format is not correct, may be they revert to the standard ICAO with local, without space
+	if len(strings.ReplaceAll(ntm.ToDate, " ", "")) == len(strings.ReplaceAll(NotamIcaoLocalDate, " ", "")) {
+		parsed, err := NotamDateToTime(strings.ReplaceAll(ntm.ToDate, " ", ""),
+			strings.ReplaceAll(NotamIcaoLocalDate, " ", ""), nil) //time.Parse("0601021504", sDateFrom)
+		if err == nil {
+			ntm.ToDateUtcTime = parsed
+			ntm.ToDateUtcClear = parsed.Format(NotamTextDate)
+			return
+		} else {
+			log.Trace().Msgf("Notam: %s - %s not a valid date TO (forced ICAO Local layout: %s)", ntm.Number, ntm.ToDate, ntm.DateToFormat)
+			log.Error().Err(err)
+		}
+	}
+
+	fmt.Print("ghere")
+	//clearly we have a problem to read the date
+	log.Warn().Msgf("Notam: %s - %s(%d) not a valid date TO (expect layout: %s(%d) or ICAO standard)",
+		ntm.Number,
+		ntm.ToDate,
+		len(ntm.ToDate),
+		ntm.DateToFormat,
+		len(ntm.DateToFormat))
+
 }
 
 func FillKey(ntm *NotamAdvanced) *NotamAdvanced {
@@ -353,14 +494,14 @@ func FillIcaoLocation(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 			latitude, err := strconv.ParseFloat(aptData.Latitude, 64)
 			if err != nil {
 				fmt.Printf("Unable to retrieve and convert Latitude %s for %s \n", aptData.Latitude, ntm.Icaolocation)
-			} else 			{
+			} else {
 				ntm.GeoData.Latitude = latitude
 			}
 
 			longitude, err := strconv.ParseFloat(aptData.Longitude, 64)
 			if err != nil {
 				fmt.Printf("Unable to retrieve and convert Longitude %s for %s \n", aptData.Longitude, ntm.Icaolocation)
-			} else 			{
+			} else {
 				ntm.GeoData.Longitude = longitude
 			}
 		}
@@ -390,14 +531,14 @@ func FillDates(fr *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
 	re := regexp.MustCompile("(?s)B\\).*?C\\).*?(D|E)\\)")
 	q := strings.TrimSpace(re.FindString(txt))
-	q = strings.TrimLeft(q, "B)")
-	q = strings.TrimRight(q, "D)")
-	q = strings.TrimRight(q, " \r\n\t")
-	q = strings.TrimRight(q, ubkspace)
+	q = strings.ReplaceAll(q, "B)", "")
+	q = strings.ReplaceAll(q, "D)", "")
+	q = strings.ReplaceAll(q, "E)", "")
 	q = strings.ReplaceAll(q, ubkspace, " ")
 	for strings.Contains(q, "  ") {
 		q = strings.ReplaceAll(q, "  ", " ")
 	}
+	q = strings.Trim(q, " \r\n\t")
 	splitted := strings.Split(q, "C)")
 
 	if len(splitted) == 1 {
@@ -409,21 +550,18 @@ func FillDates(fr *NotamAdvanced, txt string) *NotamAdvanced {
 
 		fr.FromDate = sDateFrom
 	}
-
-
-		sDateTo := splitted[1]
-		sDateTo = strings.Trim(sDateTo, " \n\r\t")
-		sDateTo = cutAtSpaceOrCr(sDateTo)
-		//NOTAM for AIP references are indicated as PERManent.
-		if strings.Contains(sDateTo, "PERM") {
-			fr.ToDate = "PERM"
-		} else {
-			fr.ToDate = sDateTo	
-		}		
+	sDateTo := splitted[1]
+	sDateTo = strings.Trim(sDateTo, " \n\r\t")
+	sDateTo = cutAtSpaceOrCr(sDateTo)
+	//NOTAM for AIP references are indicated as PERManent.
+	if strings.Contains(sDateTo, "PERM") {
+		fr.ToDate = "PERM"
+	} else {
+		fr.ToDate = sDateTo
+	}
 
 	return fr
 }
-
 
 func FillText(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 	const ubkspace = "\xC2\xA0"
@@ -437,9 +575,9 @@ func FillText(ntm *NotamAdvanced, txt string) *NotamAdvanced {
 
 	if q[len(q)-2:] == "F)" || q[len(q)-2:] == "G)" {
 		q = q[0 : len(q)-2]
-	} 
+	}
 
-	q = strings.Trim(q, ubkspace + " \r\n\t")
+	q = strings.Trim(q, ubkspace+" \r\n\t")
 
 	ntm.Text = q
 	return ntm

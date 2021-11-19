@@ -4,25 +4,27 @@ import (
 	_ "compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
-	"log"
+
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/NagoDede/notamloader/notam"
-	_ "github.com/ahmetb/go-linq"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type Mongodb struct {
 	client       *mongo.Client
 	ActiveNotams map[string]*notam.NotamStatus//*[]notam.NotamStatus
 	AfsCode  string
+	logger zerolog.Logger
 }
 
 var client *mongo.Client
@@ -30,12 +32,17 @@ var notamCollection *mongo.Collection
 
 var ctx = context.TODO()
 
+var mainlogger zerolog.Logger
+
 func NewMongoDb(afs string) *Mongodb {
-	fmt.Println("Connect to NOTAM database")
+
 	ctx = context.TODO()
 	clientmg := getClient()
 	mgdb := &Mongodb{client: clientmg, AfsCode: afs}
 	mgdb.ActiveNotams = make(map[string]*notam.NotamStatus)
+	mainlogger = log.With().Str("Mongo","main").Logger()
+	mgdb.logger = log.With().Str("Mongo - AFS", afs).Logger()
+	mgdb.logger.Info().Msg("Connect to NOTAM database")
 	mgdb.UpdateActiveNotamsFromDb()
 	return mgdb
 }
@@ -49,7 +56,7 @@ func getClient() *mongo.Client {
 			"mongodb+srv://notamuser:notamuser@clusternotam.6y9s1.mongodb.net",
 		))
 		if err != nil {
-			log.Fatal(err)
+			mainlogger.Fatal().Err(err)
 		}
 	}
 	once.Do(onceBody)
@@ -66,9 +73,9 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 		errCode := merr.WriteErrors[0].Code
 		//discard case where key is in database
 		if errCode != 11000 {
-			log.Fatal(err)
+			mgdb.logger.Fatal().Err(err)
 		} else {
-			fmt.Printf("NOTAM: %s in database \n", notam.Id)
+			mgdb.logger.Trace().Msgf("NOTAM: %s in database", notam.Id)
 			if notam.Status != "Operable" {
 				mgdb.SetOperable(notam)
 			}
@@ -78,7 +85,7 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 
 func (mgdb *Mongodb) UpdateActiveNotamsFromDb() map[string]*notam.NotamStatus {
 	mgdb.ActiveNotams = mgdb.retrieveActiveNotams()
-	fmt.Printf("\t Retrieve %d active NOTAM in the database \n", len(mgdb.ActiveNotams))
+	mgdb.logger.Info().Msgf("Retrieve %d active NOTAM in the database for %s", len(mgdb.ActiveNotams), mgdb.AfsCode)
 	return mgdb.ActiveNotams
 }
 
@@ -87,95 +94,84 @@ func (mgdb *Mongodb) GetActiveNotamsData() *[]notam.Notam {
 	filter := bson.D{{"status", "Operable"}, {"notamreference.afscode", mgdb.AfsCode}}
 	myCursor, err := notamCollection.Find(ctx, filter)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
 
 	var notams []notam.Notam
 	if err = myCursor.All(context.Background(), &notams); err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
 	return &notams
 }
 
 // Write all the Active Notams in the indicated file.
 // The file is Gzipped.
-func (mgdb *Mongodb) WriteActiveNotamToFile(country string, afs string) {
+func (mgdb Mongodb) WriteActiveNotamToFile(country string, afs string) {
 	const dir = "./web/notams/"
 	path := dir + country + "_" + afs + ".json"
-	
-	abs, err1 := filepath.Abs(path)
-	// Printing if there is no error
-	if err1 == nil {
-		fmt.Println("Absolute path is:", abs)
-	} else {
-		log.Fatal(err1)
-	}
 
+	//Write first in a temporary dir
 	name := filepath.Base(path)
-	tmpFile := filepath.Join(os.TempDir(), name)
-
-	abs, err1 = filepath.Abs(tmpFile)
-	// Printing if there is no error
-	if err1 == nil {
-		fmt.Println("Absolute path is:", abs)
-	} else {
-		log.Fatal(err1)
-	}
+	tmpPath := filepath.Join(os.TempDir(), name)
 
 	var notamToPrint = mgdb.GetActiveNotamsData()
-	fmt.Printf("Notams to print: %i \n", len(*notamToPrint))
+	mgdb.logger.Info().Msgf("Notams to print: %d", len(*notamToPrint))
 
-	os.Remove(tmpFile)
+	os.Remove(tmpPath)
 
-	file, err := os.OpenFile(tmpFile, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	tmpfile, err := os.OpenFile(tmpPath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
 
 	//writer := gzip.NewWriter(file)
 	//defer writer.Close()
-	encoder := json.NewEncoder(file)
+	encoder := json.NewEncoder(tmpfile)
 	err = encoder.Encode(notamToPrint)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
-	file.Close()
+	tmpfile.Close()
 
-	formatNotamFile(tmpFile)
-
-	fi, err := os.Stat(tmpFile)
+	//The content of the file is not formatted
+	//Git does not support well this and file is not easy to read
+	formatNotamFile(tmpPath)
+	fi, err := os.Stat(tmpPath)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
-
-	fmt.Printf("The file is %d bytes long \n", fi.Size())
-
-	source, err := os.Open(tmpFile)
+	//Copy the file
+	source, err := os.Open(tmpPath)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
 	defer source.Close()
 
 	destination, err := os.Create(path)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
 	defer destination.Close()
 	_, err = io.Copy(destination, source)
 
 	fi, err = os.Stat(path)
 	if err != nil {
-		log.Fatal(err)
+		mgdb.logger.Fatal().Err(err)
 	}
 
-	fmt.Printf("The copied file is %d bytes long \n", fi.Size())
+	mgdb.logger.Info().Msgf("Output file: %s (%d bytes)", path, fi.Size())
 
+	abs, err1 := filepath.Abs(path)
+	if err1 != nil {
+		mgdb.logger.Fatal().Err(err1)
+	}
+	mgdb.logger.Trace().Msgf("Absolute path: %s", abs)
 }
 
 func formatNotamFile(path string) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		mainlogger.Fatal().Err(err)
 	}
 
 	text := string(content)
@@ -185,9 +181,9 @@ func formatNotamFile(path string) {
 	os.Remove(path)
 	fdb := os.WriteFile(path, []byte(text), 0666)
 	if fdb != nil {
-		log.Fatal(fdb)
+		mainlogger.Fatal().Err(fdb)
 	}
-	fmt.Printf("Success, write File %s \n", path)
+	mainlogger.Trace().Msgf("Success format file %s", path)
 }
 
 //
@@ -200,7 +196,7 @@ func (mgdb *Mongodb) retrieveActiveNotams() map[string]*notam.NotamStatus{
 
 	myCursor, err := notamCollection.Find(ctx, filter, options.Find().SetProjection(projection))
 	if err != nil {
-		log.Fatal(err)
+		mainlogger.Fatal().Err(err)
 	}
 
 	//Retrive the data from the databse.
@@ -218,14 +214,11 @@ func (mgdb *Mongodb) retrieveActiveNotams() map[string]*notam.NotamStatus{
 		notams[info.Id] = &(notam.NotamStatus{NotamReference: info.NotamReference, Status: info.Status})
 	}
 
-	// if err = myCursor.All(context.Background(), &notams); err != nil {
-	//  	log.Fatal(err)
-	// }
 	return notams
 }
 
 func (mgdb Mongodb) IsOldNotam(key string) bool {
-	//	IsOldNotam(notam_location string, notam_number string)
+
 	if mgdb.ActiveNotams == nil {
 		return false
 	}
@@ -249,22 +242,6 @@ func (mgdb Mongodb) IdentifyCanceledNotams(currentNotams map[string]notam.NotamR
 		}
 	}
 
-
-	//	From(mgdb.ActiveNotams).Where(func(c interface{}) bool {
-	// 	for _, ntm := range currentNotams {
-	// 		// if ntm.Icaolocation == c.(notam.NotamStatus).Icaolocation &&
-	// 		// 	ntm.Number == c.(notam.NotamStatus).Number {
-	// 		// 	return false
-	// 		// }
-	// 		var ntmRef notam.NotamStatus
-	// 		ntmRef = c.(notam.NotamStatus)
-	// 		if ntm.GetKey() == ntmRef.GetKey() {
-	// 			return false
-	// 		}
-	// 	}
-	// 	return true
-	// }).ToSlice(&canceledNotams)
-
 	return &canceledNotams
 }
 
@@ -275,9 +252,9 @@ func (mgdb Mongodb) SetOperable(notam *notam.Notam) {
 	}
 	_, err := notamCollection.UpdateOne(ctx, filter, setOperable)
 	if err == nil {
-		fmt.Printf("%s changed to Operable  \n", notam.Id)
+		mgdb.logger.Info().Msgf("%s changed to Operable  \n", notam.Id)
 	} else {
-		fmt.Printf("Error during change to Operable %s \n", err)
+		mgdb.logger.Warn().Msgf("Error during change to Operable %s \n", err)
 	}
 }
 
@@ -296,7 +273,7 @@ func (mgdb Mongodb) SetCanceledNotamList(canceledNotams *[]notam.NotamStatus) {
 	}
 }
 
-func (mg *Mongodb ) SendToDatabase(fl *notam.NotamList) *notam.NotamReferenceList {
+func (mgdb Mongodb ) SendToDatabase(fl *notam.NotamList) *notam.NotamReferenceList {
 
 	notamList := notam.NewNotamReferenceList()
 	for _, frNotam := range fl.Data {
@@ -309,13 +286,12 @@ func (mg *Mongodb ) SendToDatabase(fl *notam.NotamList) *notam.NotamReferenceLis
 			notamList.Data[frNotam.Id] = frNotam.NotamReference
 
 			//send to db only if necessary
-			_, isOld := mg.ActiveNotams[frNotam.Id]
+			_, isOld := mgdb.ActiveNotams[frNotam.Id]
 			if !isOld {
-				//fmt.Printf("Write %s / %d \n", i, len(fl.notamList))
-				mg.AddNotam(frNotam)
+				mgdb.AddNotam(frNotam)
 			}
 		} else {
-			fmt.Printf("Duplicated %s \n", frNotam.Id)
+			mgdb.logger.Info().Msgf("Duplicated %s \n", frNotam.Id)
 		}
 	}
 	return notamList

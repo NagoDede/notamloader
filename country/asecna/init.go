@@ -1,29 +1,18 @@
 package asecna
 
 import (
-	_ "context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
-	_ "log"
-	_ "net"
-	_ "net/http"
-	_ "net/http/cookiejar"
-	_ "net/url"
+
 	"os"
-	_ "reflect"
-	_ "strings"
+
 	"sync"
-	_ "sync"
 
 	"github.com/NagoDede/notamloader/database"
 	"github.com/NagoDede/notamloader/webclient"
-	_ "github.com/NagoDede/notamloader/webclient"
-	_ "go.mongodb.org/mongo-driver/mongo"
-	_ "golang.org/x/net/publicsuffix"
 
 	"github.com/rs/zerolog"
-    "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 )
 
 // FrData contains all the information required to connect and retrieve NOTAM from AIS services
@@ -31,12 +20,13 @@ type DefData struct {
 	NotamRequestUrl   string              `json:"notamRequestUrl"`
 	CodeListPath      string              `json:"codeListPath"`
 	RequiredLocations map[string][]string `json:"requiredLocation"`
-	Country			string	`json:"country"`
+	Country           string              `json:"country"`
 }
 
 var mongoClient *database.Mongodb
 var aisClient *webclient.AisWebClient
 
+var Logger zerolog.Logger
 
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
 // It recovers the relevant information from a json file, set in ./country/japan/def.json.
@@ -44,27 +34,26 @@ var aisClient *webclient.AisWebClient
 // Once achieved, it interrogates the web form by providing the location ICAO code to
 // the webform to identify the reference list of the relevant NOTAM.
 func (def *DefData) Process(wg *sync.WaitGroup) {
-
-	logInit()
 	defer wg.Done()
-
 	//retrieve the configuration data from the json file
 	def.loadJsonFile("./country/asecna/def.json")
+	Logger = log.With().Str("Country", def.Country).Logger()
 	//Init a the http client thanks tp the configuration data
 	//Initiate a new mongo db interface
 	aisClient = webclient.NewAisWebClient()
-	log.Info().Msg("Connected to AIS ASECNA")
+	Logger.Info().Msg("Connected to AIS ASECNA")
+	templog := Logger
 
 	for afs := range def.RequiredLocations {
-
+		Logger = templog.With().Str("AFS", afs).Logger()
 		mongoClient = database.NewMongoDb(afs)
-		retrievedNotamList := 		def.RetrieveAllNotams(afs)
-		realNotamsList := retrievedNotamList.SendToDatabase(mongoClient)
-		fmt.Printf("Applicable NOTAM: %d \n", len(realNotamsList.Data))
-		 canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
-		 fmt.Printf("Canceled NOTAM: %d \n", len(*canceledNotams))
-		 mongoClient.SetCanceledNotamList(canceledNotams)
-		 mongoClient.WriteActiveNotamToFile(def.Country, afs)
+		retrievedNotamList := def.RetrieveAllNotams(afs)
+		realNotamsList := mongoClient.SendToDatabase(retrievedNotamList)
+		Logger.Info().Msgf("Applicable NOTAM: %d", len(realNotamsList.Data))
+		canceledNotams := mongoClient.IdentifyCanceledNotams(realNotamsList.Data)
+		Logger.Info().Msgf("Canceled NOTAM: %d", len(*canceledNotams))
+		mongoClient.SetCanceledNotamList(canceledNotams)
+		mongoClient.WriteActiveNotamToFile(def.Country, afs)
 	}
 
 }
@@ -77,7 +66,7 @@ func (def *DefData) loadJsonFile(path string) {
 	jsonFile, err := os.Open(path)
 	// if we os.Open returns an error then handle it
 	if err != nil {
-		fmt.Println(err)
+		Logger.Fatal().Err(err)
 	}
 
 	// defer the closing of our jsonFile so that we can parse it later on
@@ -87,11 +76,6 @@ func (def *DefData) loadJsonFile(path string) {
 
 	err = json.Unmarshal(byteValue, def)
 	if err != nil {
-		fmt.Println("error:", err)
+		Logger.Fatal().Err(err)
 	}
-}
-
-func logInit(){
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 }

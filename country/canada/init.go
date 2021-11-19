@@ -21,6 +21,7 @@ import (
 	"github.com/NagoDede/notamloader/notam"
 	"github.com/NagoDede/notamloader/webclient"
 	_ "github.com/NagoDede/notamloader/webclient"
+
 	_ "go.mongodb.org/mongo-driver/mongo"
 	_ "golang.org/x/net/publicsuffix"
 
@@ -37,6 +38,8 @@ type DefData struct {
 
 var mongoClient *database.Mongodb
 var aisClient *webclient.AisWebClient
+
+
 
 // Process launches the global process to recover the NOTAMs from the Japan AIS webpages.
 // It recovers the relevant information from a json file, set in ./country/japan/def.json.
