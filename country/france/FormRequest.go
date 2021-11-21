@@ -17,7 +17,7 @@ import (
 	_ "github.com/PuerkitoBio/goquery"
 )
 
-type FormRequest struct{
+type FirFormRequest struct{
 	Resultat 		bool 	`json:"bResultat"`
 	Impression 		string	`json:"bImpression"`
 	ModeAffichage 	string // COMPLET
@@ -34,8 +34,8 @@ type FormRequest struct{
 	FIR_Tab_Fir[10]	string//: LFRR
 }
 
-func NewFormResumeRequest(icaoCode string, sDate string, sHour string) *FormRequest{
-	return &FormRequest{
+func NewFormResumeRequest(icaoCode string, sDate string, sHour string) *FirFormRequest{
+	return &FirFormRequest{
 		Resultat: true,
 		Impression: "",
 		ModeAffichage: "RESUME",
@@ -53,7 +53,7 @@ func NewFormResumeRequest(icaoCode string, sDate string, sHour string) *FormRequ
 	}
 }
 
-func (form *FormRequest) Encode() (url.Values) {
+func (form *FirFormRequest) Encode() (url.Values) {
 	values := webclient.StructToMap(form)
 	values.Add("bImpression","")
 	values.Add("bResultat","true")
@@ -67,7 +67,7 @@ func (form *FormRequest) Encode() (url.Values) {
 	return values
 }
 
-func (form *FormRequest) EncodeForComplet(notamMin int, count int) (url.Values) {
+func (form *FirFormRequest) EncodeForComplet(notamMin int, count int) (url.Values) {
 	values := webclient.StructToMap(form)
 	values.Add("bImpression","")
 	values.Add("bResultat","true")

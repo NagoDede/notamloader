@@ -35,7 +35,7 @@ func (def *DefData) RetrieveAllNotams(afs string) *FranceNotamList {
 	return notamList
 }
 
-func (def *DefData) performResumeRequest(icaoCode string) (int, *FormRequest) {
+func (def *DefData) performResumeRequest(icaoCode string) (int, *FirFormRequest) {
 	form := NewFormResumeRequest(icaoCode, getFormatedDate(), getFormatedHour())
 	resp, err := def.SendFirRequest(form.Encode())
 	if err != nil {
@@ -54,7 +54,7 @@ func (def *DefData) performResumeRequest(icaoCode string) (int, *FormRequest) {
 
 // Retrieve all the Notams that have been previsouly identified thanks an initial form request.
 // Update the allNotams list with the new Notams and return the new table.
-func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *FormRequest, allNotams *FranceNotamList) *FranceNotamList {
+func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *FirFormRequest, allNotams *FranceNotamList) *FranceNotamList {
 	const maxreq = 100
 	fentier, _ := math.Modf(float64(nbNotams) / float64(maxreq))
 	entier := int(fentier)
