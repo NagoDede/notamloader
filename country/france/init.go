@@ -51,7 +51,7 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 	aisClient = webclient.NewAisWebClient()
 	fmt.Println("Connected to AIS France")
 
-	for afs, _ := range def.RequiredLocations {
+	for afs, _ := range def.RequiredFirLocations {
 
 		//Init a the http client thanks tp the configuration data
 		//Initiate a new mongo db interface

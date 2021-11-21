@@ -23,7 +23,7 @@ func (def *DefData) RetrieveAllNotams(afs string) *FranceNotamList {
 	notamList := NewFranceNotamList()
 
 	//allNotams := notamList.notamList//[]*FranceNotam{}
-	for _, icaoCode := range def.RequiredLocations[afs] {
+	for _, icaoCode := range def.RequiredFirLocations[afs] {
 		//There is a server limitation, above 200/300 Notams, webpage is to big and server cannot handle it.
 		//So, in a first step, we request the resume (only notam ID and title)
 		//and in a second step, we perform complete request by batch process.
