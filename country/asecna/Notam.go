@@ -17,11 +17,8 @@ type Notam struct {
 
 func NewNotam(afs string) *Notam {
 	frntm := &Notam{NotamAdvanced: notam.NewNotamAdvanced()}
-	//frntm.NotamAdvanced.FillNotamNumber = FillNotamNumber
-	//frntm.NotamAdvanced.FillDates = FillDates
+	frntm.NotamAdvanced.FillNotamNumber = FillNotamNumber
 	frntm.NotamReference.AfsCode = afs
-	frntm.NotamAdvanced.DateFromFormat="2006-01-02 15:04:05"
-	frntm.NotamAdvanced.DateToFormat="2006-01-02 15:04:05 MST"
 	
 	return frntm
 }
@@ -32,7 +29,7 @@ func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 	txt = strings.Trim(txt, " \r\n\t")
 	txt = txt[strings.Index(txt, "(")+1:]
 	fr.NotamReference.Icaolocation = fir
-	end := strings.Index(txt, " ")
+		end := strings.Index(txt, " ")
 	fr.NotamReference.Number = strings.Trim(txt[:end], " \r\n\t")
 	Logger.Trace().Msgf("Create Notam: %s ", fr.NotamReference.Number)
 	return fr

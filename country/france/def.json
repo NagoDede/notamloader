@@ -2,10 +2,26 @@
  "country": "France",
 
  "logoutpage": "",
- "notamRequestUrl": "http://notamweb.aviation-civile.gouv.fr/Script/IHM/Bul_FIR.php?Langue=EN",
+ "notamFirRequestUrl": "http://notamweb.aviation-civile.gouv.fr/Script/IHM/Bul_FIR.php?Langue=EN",
+ "notamAptRequestUrl": "http://notamweb.aviation-civile.gouv.fr/Script/IHM/Bul_Aerodrome.php?Langue=EN",
  "codeListPath":"",
  "__notes_":"The following NOTAM location indicators are extracted from the AIS France. It contains dedicated NOTAM Location indicators",
- "requiredLocation":{  "LFFAYNYX": ["LFBB","LFRR","LFMM","LFFF","LFEE","LFXX"]
+ "requiredFirLocation":{  "LFFAYNYX": ["LFBB","LFRR","LFMM","LFFF","LFEE","LFXX"],
+    "NFOF": ["NFFF"],
+    "NTAAYAYX": ["NTTT"],
+    "SOOO": ["SOOO"],
+    "TTPP": ["TTZP"]
  },
-"__notes__":"CZQX,TTZP,SOOO,FMMM,NFFF,NTTT,GOOO,DRRR,GOXX,DGFC,FTTT,DIII,FCCC"
+ "requiredAptLocation":{  
+    "NWWWZPZX": ["NWWH", "NWWO", "NWWB","NWWX","NWH4","NLWF","NWWC","NWWE","NWWD","NWWK","NWWT","NWWL","NWWR","NWH1","NWH2","NWWW","NWCC","NWWM","NWBB","NWH3","NWWN","NWWV","NWWP","NWWA","NWWU","NLWW"],
+   "NTAAYAYX": ["NTAA","NTAM","NTAR","NTAT","NTAV","NTGA","NTGB","NTGC","NTGD","NTGE","NTGF","NTGG","NTGH","NTGI","NTGJ","NTGK","NTGM","NTGN","NTGO","NTGP","NTGQ","NTGR","NTGT","NTGU","NTGV","NTGW","NTGY",
+   "NTHE","NTKA","NTKF","NTKH","NTKK","NTKM","NTKN","NTKO","NTKR","NTKT","NTKU",
+   "NTMD","NTMN","NTMP","NTMU",
+   "NTTB","NTTE","NTTG","NTTH","NTTM","NTTO","NTTP","NTTR","NTTU","NTTX",
+   "NTUV"
+   ],
+   "SOOO": ["SOOO"],
+   "TTPP": ["TTZP"]
+},
+"__notes__":"CZQX,DRRR,GOXX,DGFC,FTTT,DIII"
 }

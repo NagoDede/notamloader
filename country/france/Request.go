@@ -37,7 +37,7 @@ func (def *DefData) RetrieveAllNotams(afs string) *FranceNotamList {
 
 func (def *DefData) performResumeRequest(icaoCode string) (int, *FormRequest) {
 	form := NewFormResumeRequest(icaoCode, getFormatedDate(), getFormatedHour())
-	resp, err := def.SendRequest(form.Encode())
+	resp, err := def.SendFirRequest(form.Encode())
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -62,7 +62,7 @@ func (def *DefData) performCompleteRequest(afs string, nbNotams int, initForm *F
 
 	// Dedicated function that requests the notams from min_id to max_id
 	individualRequest := func(min_id int, cnt int) {
-		resp, err := def.SendRequest(initForm.EncodeForComplet(min_id, cnt))
+		resp, err := def.SendFirRequest(initForm.EncodeForComplet(min_id, cnt))
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -144,8 +144,8 @@ func extractNumberOfNotams(body io.ReadCloser) int {
 	return nbNotam
 }
 
-func (def *DefData) SendRequest(form url.Values) (*http.Response, error) {
-	return aisClient.Client.PostForm(def.NotamRequestUrl, form) //aisClient.SendPost(def.NotamRequestUrl, form)
+func (def *DefData) SendFirRequest(form url.Values) (*http.Response, error) {
+	return aisClient.Client.PostForm(def.NotamFirRequestUrl, form) //aisClient.SendPost(def.NotamRequestUrl, form)
 }
 
 func getFormatedDate() string {

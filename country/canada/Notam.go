@@ -18,13 +18,13 @@ type Notam struct {
 
 func NewNotam(afs string) *Notam {
 	frntm := &Notam{NotamAdvanced: notam.NewNotamAdvanced()}
-	frntm.NotamAdvanced.FillNotamNumber = FillNotamNumber
+	frntm.NotamAdvanced.FillNotamNumber = fillNotamNumber
 	//frntm.NotamAdvanced.FillDates = FillDates
 	frntm.NotamReference.AfsCode = afs
 	return frntm
 }
 
-func FillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
+func fillNotamNumber(fr *notam.NotamAdvanced, txt string) *notam.NotamAdvanced {
 
 	fir := txt[strings.Index(txt, "Q)")+2 : strings.Index(txt, "Q)")+6]
 	txt = txt[:strings.Index(txt, "Q)")+6] //keep text up to the QCode

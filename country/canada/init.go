@@ -91,9 +91,9 @@ func (def *DefData) Process(wg *sync.WaitGroup) {
 			if err != nil {
 				fmt.Println("Error in umarshall Canada data")
 			}
-			ntm := notam.NewNotamAdvanced()
+			ntm := NewNotam(afs)
 			ntm.AfsCode = afs
-			ntm = notam.FillNotamFromText(ntm, text.Raw)
+			ntm.NotamAdvanced = notam.FillNotamFromText(ntm.NotamAdvanced, text.Raw)
 			_, ok := notamList.Data[ntm.Id]
 			if !ok {
 				notamList.Data[ntm.Id] = &ntm.Notam

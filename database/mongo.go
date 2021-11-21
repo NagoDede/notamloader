@@ -75,7 +75,7 @@ func (mgdb *Mongodb) AddNotam(notam *notam.Notam) {
 		if errCode != 11000 {
 			mgdb.logger.Fatal().Err(err)
 		} else {
-			mgdb.logger.Trace().Msgf("NOTAM: %s in database", notam.Id)
+			//mgdb.logger.Trace().Msgf("NOTAM: %s in database", notam.Id)
 			if notam.Status != "Operable" {
 				mgdb.SetOperable(notam)
 			}

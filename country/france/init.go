@@ -27,10 +27,11 @@ var FranceAis DefData
 
 // FrData contains all the information required to connect and retrieve NOTAM from AIS services
 type DefData struct {
-	NotamRequestUrl   string              `json:"notamRequestUrl"`
-	CodeListPath      string              `json:"codeListPath"`
-	RequiredLocations map[string][]string `json:"requiredLocation"`
-	Country			string				`json:"country"`
+	NotamFirRequestUrl string              `json:"notamFirRequestUrl"`
+	NotamAptRequestUrl string              `json:"notamAptRequestUrl"`
+	CodeListPath       string              `json:"codeListPath"`
+	RequiredFirLocations  map[string][]string `json:"requiredLocation"`
+	Country            string              `json:"country"`
 }
 
 var mongoClient *database.Mongodb
