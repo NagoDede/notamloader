@@ -36,7 +36,7 @@ func (def *DefData) RetrieveAllNotams(afs string) *FranceNotamList {
 }
 
 func (def *DefData) performResumeRequest(icaoCode string) (int, *FirFormRequest) {
-	form := NewFormResumeRequest(icaoCode, getFormatedDate(), getFormatedHour())
+	form := NewFirFormResumeRequest(icaoCode, getFormatedDate(), getFormatedHour())
 	resp, err := def.SendFirRequest(form.Encode())
 	if err != nil {
 		log.Fatalln(err)
